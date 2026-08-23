@@ -1,0 +1,14 @@
+{
+  "name": "payroll-platform-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "prisma:generate": "npx prisma generate --schema=apps/api/prisma/schema.prisma",
+    "prisma:migrate": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma"
+  }
+}
