@@ -8,7 +8,9 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
   let companyId: string;
   let tenantBId: string;
   let managerId: string;
+  let managerUserId: string;
   let subordinateId: string;
+  let subordinateUserId: string;
   let unrelatedEmpId: string;
   let payrollCycleId: string;
   let payslipRecordId: string;
@@ -17,7 +19,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
   let regularizationId: string;
 
   beforeAll(async () => {
-    // 1. Fixture cleanup
+    // 1. Fixture cleanup for idempotence
     const testCodes = ['TEST-8A-CORP-A', 'TEST-8A-CORP-B'];
     await prisma.attendanceRegularizationRequest.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.employeeNotification.deleteMany({ where: { company: { code: { in: testCodes } } } });
@@ -27,6 +29,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     await prisma.payrollRecord.deleteMany({ where: { employee: { company: { code: { in: testCodes } } } } });
     await prisma.payrollCycle.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.auditLog.deleteMany({ where: { company: { code: { in: testCodes } } } });
+    await prisma.userRole.deleteMany({ where: { user: { company: { code: { in: testCodes } } } } });
     await prisma.user.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.employee.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.company.deleteMany({ where: { code: { in: testCodes } } });
@@ -42,7 +45,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     });
     tenantBId = compB.id;
 
-    // 3. Setup Manager & Subordinate Hierarchy
+    // 3. Setup Manager & Subordinate Hierarchy with valid Users
     const mgr = await prisma.employee.create({
       data: {
         companyId,
@@ -57,13 +60,24 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     });
     managerId = mgr.id;
 
+    const uMgr = await prisma.user.create({
+      data: {
+        companyId,
+        email: 'vikram.mgr@sarwin.com',
+        passwordHash: 'hash',
+        employeeId: mgr.id,
+        isActive: true,
+      },
+    });
+    managerUserId = uMgr.id;
+
     const sub = await prisma.employee.create({
       data: {
         companyId,
         employeeCode: 'EMP-SUB-01',
         name: 'Subordinate Rohan',
         email: 'rohan.sub@sarwin.com',
-        managerId: mgr.id, // Linked to Vikram
+        managerId: mgr.id,
         monthlyGross: 80000,
         basicSalary: 40000,
         pan: 'FGHIJ5678K',
@@ -72,6 +86,17 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
       },
     });
     subordinateId = sub.id;
+
+    const uSub = await prisma.user.create({
+      data: {
+        companyId,
+        email: 'rohan.sub@sarwin.com',
+        passwordHash: 'hash',
+        employeeId: sub.id,
+        isActive: true,
+      },
+    });
+    subordinateUserId = uSub.id;
 
     const unrelated = await prisma.employee.create({
       data: {
@@ -161,9 +186,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     await prisma.$disconnect();
   });
 
-  // ==========================================
   // SECTION 1: ESS DASHBOARD & PROFILE (8 TESTS)
-  // ==========================================
   it('[ESS 01] Retrieves ESS Dashboard with aggregated leave and latest payslip', async () => {
     const dash = await EssPortalService.getDashboard({
       companyId,
@@ -221,7 +244,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     await expect(
       EssPortalService.getPayslipDetail({
         companyId,
-        employeeId: managerId, // Wrong employee trying to access Rohan's payslip
+        employeeId: managerId,
         recordId: payslipRecordId,
       })
     ).rejects.toThrow('Payslip not found or access denied');
@@ -243,9 +266,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     ).rejects.toThrow('Employee profile not found');
   });
 
-  // ==========================================
   // SECTION 2: LEAVE & ATTENDANCE WORKFLOW (8 TESTS)
-  // ==========================================
   it('[WORKFLOW 01] Submits Attendance Regularization request in SUBMITTED state', async () => {
     const reg = await EssPortalService.submitAttendanceRegularization({
       companyId,
@@ -307,9 +328,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     expect(updated.status).toBe(LeaveRequestStatus.CANCELLED);
   });
 
-  // ==========================================
   // SECTION 3: MSS DASHBOARD & APPROVALS (8 TESTS)
-  // ==========================================
   it('[MSS 01] Manager Dashboard retrieves only direct subordinates', async () => {
     const mss = await MssPortalService.getManagerDashboard({
       companyId,
@@ -328,7 +347,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
       managerEmployeeId: managerId,
       requestId: leaveRequestId,
       action: 'APPROVE',
-      actorUserId: 'admin-user-id',
+      actorUserId: managerUserId,
       actorEmail: 'vikram@sarwin.com',
       actorRole: 'MANAGER',
     });
@@ -357,7 +376,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
       requestId: newReq.id,
       action: 'REJECT',
       comments: 'Project deadline critical',
-      actorUserId: 'admin-user-id',
+      actorUserId: managerUserId,
       actorEmail: 'vikram@sarwin.com',
       actorRole: 'MANAGER',
     });
@@ -370,7 +389,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     const mgrSelfReq = await prisma.leaveRequest.create({
       data: {
         companyId,
-        employeeId: managerId, // Vikram's own request
+        employeeId: managerId,
         leaveTypeId,
         fromDate: new Date('2026-09-25'),
         toDate: new Date('2026-09-26'),
@@ -383,10 +402,10 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     await expect(
       MssPortalService.actionLeaveRequest({
         companyId,
-        managerEmployeeId: managerId, // Attempting to approve own request
+        managerEmployeeId: managerId,
         requestId: mgrSelfReq.id,
         action: 'APPROVE',
-        actorUserId: 'admin-user-id',
+        actorUserId: managerUserId,
         actorEmail: 'vikram@sarwin.com',
         actorRole: 'MANAGER',
       })
@@ -397,7 +416,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     const otherReq = await prisma.leaveRequest.create({
       data: {
         companyId,
-        employeeId: unrelatedEmpId, // Not reporting to Vikram
+        employeeId: unrelatedEmpId,
         leaveTypeId,
         fromDate: new Date('2026-09-28'),
         toDate: new Date('2026-09-29'),
@@ -413,7 +432,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
         managerEmployeeId: managerId,
         requestId: otherReq.id,
         action: 'APPROVE',
-        actorUserId: 'admin-user-id',
+        actorUserId: managerUserId,
         actorEmail: 'vikram@sarwin.com',
         actorRole: 'MANAGER',
       })
@@ -427,14 +446,13 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
       requestId: regularizationId,
       action: 'APPROVE',
       comments: 'Regularized',
-      actorUserId: 'admin-user-id',
+      actorUserId: managerUserId,
       actorEmail: 'vikram@sarwin.com',
       actorRole: 'MANAGER',
     });
 
     expect(res.status).toBe(RegularizationStatus.APPROVED);
 
-    // Verify AttendanceRecord upsert
     const att = await prisma.attendanceRecord.findFirst({
       where: { employeeId: subordinateId, attendanceDate: new Date('2026-08-10') },
     });
@@ -442,9 +460,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     expect(att!.status).toBe('PRESENT');
   });
 
-  // ==========================================
   // SECTION 4: SECURITY & FINANCIAL SAFETY (8 TESTS)
-  // ==========================================
   it('[SEC 01] Locked payroll records remain strictly immutable during ESS queries', async () => {
     const before = await prisma.payrollRecord.findUnique({ where: { id: payslipRecordId } });
     await EssPortalService.getPayslipDetail({ companyId, employeeId: subordinateId, recordId: payslipRecordId });
