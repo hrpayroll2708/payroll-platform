@@ -7,15 +7,15 @@ const INR = "\u20B9";
 
 export default function SarwinHRPayrollApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [employees, setEmployees] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [modalOpen, setModalOpen] = useState(false);
-  const [profileModalData, setProfileModalData] = useState(null);
-  const [payslipModalData, setPayslipModalData] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
+  const [profileModalData, setProfileModalData] = useState<any>(null);
+  const [payslipModalData, setPayslipModalData] = useState<any>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [newEmp, setNewEmp] = useState({
     name: "",
@@ -29,8 +29,8 @@ export default function SarwinHRPayrollApp() {
     ifsc: "HDFC0001234"
   });
 
-  const [payrollData, setPayrollData] = useState(null);
-  const [lopRecords, setLopRecords] = useState({});
+  const [payrollData, setPayrollData] = useState<any>(null);
+  const [lopRecords, setLopRecords] = useState<Record<string, any>>({});
   const [payrollStep, setPayrollStep] = useState(1);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function SarwinHRPayrollApp() {
     fetchEmployees();
   }, []);
 
-  const showToast = (msg) => {
+  const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
@@ -61,7 +61,7 @@ export default function SarwinHRPayrollApp() {
     }
   };
 
-  const handleAddEmployee = async (e) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -88,7 +88,7 @@ export default function SarwinHRPayrollApp() {
         showToast("Employee enrolled into SARWIN HRPAYROLL.");
       }
     } catch (err) {
-      showToast("Error enrolling employee.");
+      showToast("Error saving employee.");
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,7 @@ export default function SarwinHRPayrollApp() {
         showToast("August 2026 Statutory Payroll computed successfully.");
       }
     } catch (err) {
-      showToast("Failed to compute statutory payroll.");
+      showToast("Failed to compute payroll.");
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ export default function SarwinHRPayrollApp() {
     if (!payrollData) return;
     const header = "Beneficiary_Account_No,IFSC_Code,Disbursement_Amount,Beneficiary_Name,Remarks\n";
     const rows = payrollData.calculations.map(
-      (c) => `${c.bankAccount},${c.ifsc},${c.netSalary},"${c.name}",Salary August 2026`
+      (c: any) => `${c.bankAccount},${c.ifsc},${c.netSalary},"${c.name}",Salary August 2026`
     ).join("\n");
 
     const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
@@ -130,7 +130,7 @@ export default function SarwinHRPayrollApp() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Bank NEFT disbursement batch file downloaded.");
+    showToast("NEFT Disbursement Batch file downloaded.");
   };
 
   const filteredEmployees = employees.filter((emp) => {
@@ -144,7 +144,6 @@ export default function SarwinHRPayrollApp() {
 
   return (
     <div className="flex h-screen bg-[#0F172A] text-slate-100 font-sans antialiased overflow-hidden">
-      {/* Toast */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl z-50 text-xs font-bold flex items-center gap-3 border border-slate-700">
           <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
@@ -177,16 +176,12 @@ export default function SarwinHRPayrollApp() {
 
           <div className="p-3 space-y-4 text-xs">
             <div>
-              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Core Systems
-              </p>
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Core Systems</p>
               <nav className="space-y-1">
                 <button
                   onClick={() => setActiveTab("dashboard")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
-                    activeTab === "dashboard"
-                      ? "bg-blue-600 text-white font-bold shadow-md"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    activeTab === "dashboard" ? "bg-blue-600 text-white font-bold shadow-md" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
@@ -195,9 +190,7 @@ export default function SarwinHRPayrollApp() {
                 <button
                   onClick={() => setActiveTab("employees")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
-                    activeTab === "employees"
-                      ? "bg-blue-600 text-white font-bold shadow-md"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    activeTab === "employees" ? "bg-blue-600 text-white font-bold shadow-md" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
@@ -207,16 +200,12 @@ export default function SarwinHRPayrollApp() {
             </div>
 
             <div>
-              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Time & Payroll
-              </p>
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Time & Payroll</p>
               <nav className="space-y-1">
                 <button
                   onClick={() => setActiveTab("attendance")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
-                    activeTab === "attendance"
-                      ? "bg-blue-600 text-white font-bold shadow-md"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    activeTab === "attendance" ? "bg-blue-600 text-white font-bold shadow-md" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -225,25 +214,19 @@ export default function SarwinHRPayrollApp() {
                 <button
                   onClick={() => setActiveTab("payroll")}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-all ${
-                    activeTab === "payroll"
-                      ? "bg-blue-600 text-white font-bold shadow-md"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    activeTab === "payroll" ? "bg-blue-600 text-white font-bold shadow-md" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                     Payroll Command Center
                   </div>
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                    AUG 26
-                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">AUG 26</span>
                 </button>
                 <button
                   onClick={() => setActiveTab("compliance")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
-                    activeTab === "compliance"
-                      ? "bg-blue-600 text-white font-bold shadow-md"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    activeTab === "compliance" ? "bg-blue-600 text-white font-bold shadow-md" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
@@ -252,9 +235,7 @@ export default function SarwinHRPayrollApp() {
                 <button
                   onClick={() => setActiveTab("reports")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
-                    activeTab === "reports"
-                      ? "bg-blue-600 text-white font-bold shadow-md"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    activeTab === "reports" ? "bg-blue-600 text-white font-bold shadow-md" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -278,7 +259,7 @@ export default function SarwinHRPayrollApp() {
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <main className="flex-1 flex flex-col bg-[#F8FAFC] text-slate-800 overflow-y-auto">
         <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-3">
@@ -327,7 +308,7 @@ export default function SarwinHRPayrollApp() {
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gross Monthly Run</p>
                 <div className="mt-3">
                   <span className="text-3xl font-black text-slate-900 font-mono">
-                    {INR}{(stats?.monthlyGrossPayroll || employees.reduce((s, e) => s + (e.monthlyGross || 0), 0)).toLocaleString("en-IN")}
+                    {INR}{(stats?.monthlyGrossPayroll || employees.reduce((s: number, e: any) => s + (e.monthlyGross || 0), 0)).toLocaleString("en-IN")}
                   </span>
                   <p className="mt-1 text-[11px] text-slate-400 font-medium">Monthly CTC Base Value</p>
                 </div>
@@ -581,7 +562,7 @@ export default function SarwinHRPayrollApp() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {payrollData.calculations.map((c) => (
+                          {payrollData.calculations.map((c: any) => (
                             <tr key={c.employeeId} className="hover:bg-slate-50">
                               <td className="px-4 py-3 font-bold text-slate-900">{c.name}</td>
                               <td className="px-4 py-3 text-right font-mono">{INR}{c.earnings.gross.toLocaleString("en-IN")}</td>

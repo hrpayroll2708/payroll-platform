@@ -2,17 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
-}
-
+* { box-sizing: border-box; }
 body {
   margin: 0;
   padding: 0;
   background-color: #0F172A;
   color: #F8FAFC;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
 }
 
 @media print {
@@ -24,10 +19,8 @@ body {
     top: 0;
     width: 100%;
     margin: 0;
-    padding: 24px;
+    padding: 20px;
     background: #ffffff !important;
     color: #0F172A !important;
-    box-shadow: none !important;
-    border: none !important;
   }
 }
