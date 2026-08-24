@@ -1,4 +1,4 @@
-datasource db {
+﻿datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -7,20 +7,976 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum TenantStatus {
-  ACTIVE
-  SUSPENDED
-  DEACTIVATED
+// --------------------------------------------------
+// 1. TENANCY & COMPANY ANCHOR
+// --------------------------------------------------
+model Company {
+  id                String       @id @default(uuid())
+  code              String       @unique
+  name              String
+  legalName         String?
+  logoUrl           String?
+  website           String?
+  email             String?
+  phone             String?
+  address           String?
+  city              String?
+  state             String?
+  country           String       @default("India")
+  postalCode        String?
+  currency          String       @default("INR")
+  timezone          String       @default("Asia/Kolkata")
+  financialYearStart Int         @default(4) // April
+  employeeSequence  Int          @default(0)
+  isDefault         Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  users             User[]
+  employees         Employee[]
+  auditLogs         AuditLog[]
+  departments       Department[]
+  designations      Designation[]
+  locations         Location[]
+  shifts            Shift[]
+  shiftAssignments  ShiftAssignment[]
+  holidays          Holiday[]
+  leaveTypes        LeaveType[]
+  leaveBalances     LeaveBalance[]
+  attendancePeriodLocks AttendancePeriodLock[]
+  salaryComponents  SalaryComponent[]
+  salaryStructures  SalaryStructure[]
+  employeeSalaryAssignments EmployeeSalaryAssignment[]
+  salaryRevisions   SalaryRevision[]
+  payrollCycles     PayrollCycle[]
+  payrollAdjustments PayrollAdjustment[]
+
+  // Phase 7A Additions
+  statutoryConfigurations  StatutoryConfiguration[]
+  compliancePeriods        CompliancePeriod[]
+  employeeStatutoryProfiles EmployeeStatutoryProfile[]
+  complianceDocuments      ComplianceDocument[]
+  complianceExceptions     ComplianceException[]
+
+  @@index([code])
 }
 
+// --------------------------------------------------
+// 2. AUTHENTICATION & GRANULAR RBAC
+// --------------------------------------------------
+model User {
+  id                String           @id @default(uuid())
+  companyId         String
+  email             String           @unique
+  passwordHash      String
+  employeeId        String?          @unique
+  isActive          Boolean          @default(true)
+  tokenVersion      Int              @default(1)
+  lastLoginAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  company           Company          @relation(fields: [companyId], references: [id])
+  employee          Employee?        @relation(fields: [employeeId], references: [id])
+  userRoles         UserRole[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+
+  @@index([companyId, email])
+}
+
+model RefreshToken {
+  id                String         @id @default(uuid())
+  userId            String
+  tokenHash         String         @unique
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime       @default(now())
+
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Role {
+  id                String           @id @default(uuid())
+  code              String           @unique
+  name              String
+  description       String?
+  isSystem          Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  rolePermissions   RolePermission[]
+  userRoles         UserRole[]
+}
+
+model Permission {
+  id                String           @id @default(uuid())
+  code              String           @unique
+  module            String
+  description       String?
+  createdAt         DateTime         @default(now())
+
+  rolePermissions   RolePermission[]
+}
+
+model RolePermission {
+  roleId            String
+  permissionId      String
+
+  role              Role             @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission        Permission       @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId            String
+  roleId            String
+
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              Role             @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+// --------------------------------------------------
+// 3. APPEND-ONLY AUDIT LEDGER
+// --------------------------------------------------
+model AuditLog {
+  id                String       @id @default(uuid())
+  companyId         String
+  userId            String?
+  actorEmail        String
+  actorRole         String
+  action            String
+  entity            String
+  entityId          String
+  beforeState       Json?
+  afterState        Json?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime     @default(now())
+
+  company           Company      @relation(fields: [companyId], references: [id])
+  user              User?        @relation(fields: [userId], references: [id])
+
+  @@index([companyId, action])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// --------------------------------------------------
+// 4. ORGANIZATION DOMAIN ENTITIES
+// --------------------------------------------------
+model Department {
+  id          String     @id @default(uuid())
+  companyId   String
+  code        String
+  name        String
+  description String?
+  headId      String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  head        Employee?  @relation("DepartmentHead", fields: [headId], references: [id], onDelete: SetNull)
+  employees   Employee[] @relation("EmployeeDepartment")
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+model Designation {
+  id          String     @id @default(uuid())
+  companyId   String
+  code        String
+  title       String
+  description String?
+  level       Int        @default(1)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees   Employee[] @relation("EmployeeDesignation")
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+model Location {
+  id          String     @id @default(uuid())
+  companyId   String
+  code        String
+  name        String
+  address     String?
+  city        String
+  state       String
+  country     String     @default("India")
+  postalCode  String?
+  timezone    String     @default("Asia/Kolkata")
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees   Employee[] @relation("EmployeeLocation")
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+// --------------------------------------------------
+// 5. TIME, ATTENDANCE & LEAVES
+// --------------------------------------------------
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+  WEEKLY_OFF
+  LOP
+  WORK_FROM_HOME
+}
+
+enum AttendanceSource {
+  WEB_PORTAL
+  BIOMETRIC_SYNC
+  MANUAL_ADJUSTMENT
+  SYSTEM_CALCULATED
+}
+
+enum ShiftAssignmentType {
+  EMPLOYEE
+  DEPARTMENT
+  LOCATION
+  COMPANY_DEFAULT
+}
+
+enum LeaveRequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum HalfDaySession {
+  FIRST_HALF
+  SECOND_HALF
+}
+
+model Shift {
+  id                  String              @id @default(uuid())
+  companyId           String
+  code                String
+  name                String
+  startTime           String
+  endTime             String
+  gracePeriodMinutes  Int                 @default(15)
+  breakMinutes        Int                 @default(60)
+  workingHours        Float               @default(8.0)
+  isOvernight         Boolean             @default(false)
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignments         ShiftAssignment[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+model ShiftAssignment {
+  id                  String              @id @default(uuid())
+  companyId           String
+  shiftId             String
+  assignmentType      ShiftAssignmentType
+  employeeId          String?
+  departmentId        String?
+  locationId          String?
+  effectiveFrom       DateTime            @db.Date
+  effectiveTo         DateTime?           @db.Date
+  createdAt           DateTime            @default(now())
+
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shift               Shift               @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  employee            Employee?           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, assignmentType])
+  @@index([employeeId, effectiveFrom])
+}
+
+model Holiday {
+  id                  String              @id @default(uuid())
+  companyId           String
+  name                String
+  holidayDate         DateTime            @db.Date
+  holidayType         String              @default("NATIONAL")
+  locationId          String?
+  departmentId        String?
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, holidayDate, locationId, departmentId])
+  @@index([companyId, holidayDate])
+}
+
+model LeaveType {
+  id                  String              @id @default(uuid())
+  companyId           String
+  code                String
+  name                String
+  isPaid              Boolean             @default(true)
+  annualEntitlement   Float               @default(12.0)
+  isCarryForward      Boolean             @default(false)
+  maxCarryForward     Float               @default(0.0)
+  requiresApproval    Boolean             @default(true)
+  requiresDocument    Boolean             @default(false)
+  applicableGender    Gender              @default(OTHER)
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  balances            LeaveBalance[]
+  requests            LeaveRequest[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+model LeaveBalance {
+  id                  String              @id @default(uuid())
+  companyId           String
+  employeeId          String
+  leaveTypeId         String
+  financialYear       String
+  openingBalance      Float               @default(0.0)
+  accrued             Float               @default(0.0)
+  used                Float               @default(0.0)
+  pending             Float               @default(0.0)
+  available           Float               @default(0.0)
+  carryForward        Float               @default(0.0)
+  updatedAt           DateTime            @updatedAt
+
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType           LeaveType           @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, leaveTypeId, financialYear])
+  @@index([companyId, financialYear])
+}
+
+model LeaveRequest {
+  id                  String              @id @default(uuid())
+  companyId           String
+  employeeId          String
+  leaveTypeId         String
+  fromDate            DateTime            @db.Date
+  toDate              DateTime            @db.Date
+  totalDays           Float
+  isHalfDay           Boolean             @default(false)
+  halfDaySession      HalfDaySession?
+  reason              String
+  documentUrl         String?
+  status              LeaveRequestStatus  @default(SUBMITTED)
+  approverId          String?
+  approvedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  employee            Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType           LeaveType           @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  approver            Employee?           @relation("LeaveApprover", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, status])
+  @@index([fromDate, toDate])
+}
+
+model AttendanceRecord {
+  id                  String              @id @default(uuid())
+  companyId           String
+  employeeId          String
+  attendanceDate      DateTime            @db.Date
+  status              AttendanceStatus    @default(PRESENT)
+  checkIn             DateTime?
+  checkOut            DateTime?
+  workedMinutes       Int                 @default(0)
+  lateMinutes         Int                 @default(0)
+  earlyExitMinutes    Int                 @default(0)
+  source              AttendanceSource    @default(WEB_PORTAL)
+  remarks             String?
+  shiftId             String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  employee            Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, attendanceDate])
+  @@index([companyId, attendanceDate])
+  @@index([attendanceDate, status])
+}
+
+model AttendancePeriodLock {
+  id                  String              @id @default(uuid())
+  companyId           String
+  month               Int
+  year                Int
+  status              String              @default("OPEN")
+  lockedBy            String?
+  lockedAt            DateTime?
+  unlockedBy          String?
+  unlockedAt          DateTime?
+  remarks             String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, month, year])
+  @@index([companyId, status])
+}
+
+// --------------------------------------------------
+// 6. SALARY MANAGEMENT & REVISIONS
+// --------------------------------------------------
+enum ComponentType {
+  EARNING
+  DEDUCTION
+}
+
+enum ComponentFormulaType {
+  FLAT_AMOUNT
+  PERCENTAGE_OF_BASE
+  BALANCING_FIGURE
+  STATUTORY_FORMULA
+}
+
+enum SalaryAssignmentStatus {
+  ACTIVE
+  SUPERSEDED
+  CANCELLED
+}
+
+enum RevisionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model SalaryComponent {
+  id                      String               @id @default(uuid())
+  companyId               String
+  code                    String
+  name                    String
+  description             String?
+  type                    ComponentType        @default(EARNING)
+  formulaType             ComponentFormulaType @default(FLAT_AMOUNT)
+  percentageBasisCode     String?
+  defaultPercentage       Float?
+  calculationOrder        Int                  @default(1)
+  isTaxable               Boolean              @default(true)
+  isStatutory             Boolean              @default(false)
+  isActive                Boolean              @default(true)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+
+  company                 Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  structureMappings       SalaryStructureComponent[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+model SalaryStructure {
+  id                  String                     @id @default(uuid())
+  companyId           String
+  code                String
+  name                String
+  description         String?
+  isDefault           Boolean                    @default(false)
+  isActive            Boolean                    @default(true)
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  company             Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  components          SalaryStructureComponent[]
+  assignments         EmployeeSalaryAssignment[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+model SalaryStructureComponent {
+  id                  String               @id @default(uuid())
+  structureId         String
+  componentId         String
+  formulaType         ComponentFormulaType @default(FLAT_AMOUNT)
+  percentageBasisCode String?
+  percentageValue     Float?
+  calculationOrder    Int                  @default(1)
+
+  structure           SalaryStructure      @relation(fields: [structureId], references: [id], onDelete: Cascade)
+  component           SalaryComponent      @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@unique([structureId, componentId])
+  @@index([structureId, calculationOrder])
+}
+
+model EmployeeSalaryAssignment {
+  id                  String                 @id @default(uuid())
+  companyId           String
+  employeeId          String
+  structureId         String
+  annualCtc           Float
+  monthlyCtc          Float
+  monthlyGross        Float
+  basicSalary         Float
+  hra                 Float
+  specialAllowance    Float
+  otherAllowances     Float                  @default(0.0)
+  componentBreakdown  Json?
+  effectiveFrom       DateTime               @db.Date
+  effectiveTo         DateTime?              @db.Date
+  revisionReason      String?
+  status              SalaryAssignmentStatus @default(ACTIVE)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  company             Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  structure           SalaryStructure        @relation(fields: [structureId], references: [id], onDelete: Restrict)
+  revisionRef         SalaryRevision?        @relation("RevisionAssignment")
+
+  @@index([employeeId, effectiveFrom])
+  @@index([companyId, status])
+}
+
+model SalaryRevision {
+  id                  String             @id @default(uuid())
+  companyId           String
+  employeeId          String
+  assignmentId        String?            @unique("RevisionAssignment")
+  currentAnnualCtc    Float
+  proposedAnnualCtc   Float
+  revisionPercentage  Float
+  revisionAmount      Float
+  effectiveFrom       DateTime           @db.Date
+  reason              String
+  status              RevisionStatus     @default(PENDING_APPROVAL)
+  requestedById       String
+  actionedById        String?
+  actionedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  requestedBy         Employee           @relation("RevisionRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  actionedBy          Employee?          @relation("RevisionActioner", fields: [actionedById], references: [id], onDelete: SetNull)
+  createdAssignment   EmployeeSalaryAssignment? @relation("RevisionAssignment", fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, status])
+  @@index([companyId, effectiveFrom])
+}
+
+// --------------------------------------------------
+// 7. PAYROLL COMMAND CENTER & LIFECYCLE
+// --------------------------------------------------
+enum PayrollCycleState {
+  DRAFT
+  OPEN
+  CALCULATING
+  CALCULATED
+  UNDER_REVIEW
+  PENDING_APPROVAL
+  APPROVED
+  LOCKED
+  PROCESSED
+  CANCELLED
+}
+
+enum ExceptionSeverity {
+  BLOCKING
+  WARNING
+  INFORMATION
+}
+
+enum ExceptionCategory {
+  BANKING
+  COMPENSATION
+  ATTENDANCE
+  STATUTORY
+  IDENTITY
+  LIFECYCLE
+}
+
+enum AdjustmentType {
+  ARREAR
+  RECOVERY
+  BONUS_PAYOUT
+  STATUTORY_CORRECTION
+  OVERTIME_SETTLEMENT
+}
+
+model PayrollCycle {
+  id                  String             @id @default(uuid())
+  companyId           String
+  month               Int
+  year                Int
+  periodStartDate     DateTime           @db.Date
+  periodEndDate       DateTime           @db.Date
+  paymentDueDate      DateTime           @db.Date
+  status              PayrollCycleState  @default(DRAFT)
+  
+  totalHeadcount      Int                @default(0)
+  totalGrossPayable   Float              @default(0.0)
+  totalNetPayout      Float              @default(0.0)
+  totalEpfEmployee    Float              @default(0.0)
+  totalEpfEmployer    Float              @default(0.0)
+  totalEsicEmployee   Float              @default(0.0)
+  totalEsicEmployer   Float              @default(0.0)
+  totalPt             Float              @default(0.0)
+  totalTds            Float              @default(0.0)
+  totalEmployerCost   Float              @default(0.0)
+  totalLopDeductions  Float              @default(0.0)
+
+  createdById         String?
+  calculatedAt        DateTime?
+  approvedById        String?
+  approvedAt          DateTime?
+  lockedById          String?
+  lockedAt            DateTime?
+  processedById       String?
+  processedAt         DateTime?
+  remarks             String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  records             PayrollRecord[]
+  exceptions          PayrollException[]
+  adjustments         PayrollAdjustment[]
+  exports             PayrollExport[]
+
+  // Phase 7A Additions
+  complianceDocuments ComplianceDocument[]
+  complianceExceptions ComplianceException[]
+
+  @@unique([companyId, month, year])
+  @@index([companyId, status])
+}
+
+model PayrollRecord {
+  id                  String             @id @default(uuid())
+  payrollCycleId      String
+  employeeId          String
+  salaryAssignmentId  String?
+  
+  calendarDays        Int
+  workingDays         Int
+  presentDays         Float
+  paidLeaveDays       Float
+  unpaidLeaveDays     Float
+  weeklyOffs          Int
+  holidays            Int
+  lopDays             Float
+  payableDays         Float
+  
+  annualCtc           Float
+  monthlyCtc          Float
+  monthlyGross        Float
+  earnedGross         Float
+  basicSalary         Float
+  hra                 Float
+  specialAllowance    Float
+  otherEarnings       Float              @default(0.0)
+  arrearsAmount       Float              @default(0.0)
+  totalEarnings       Float
+  
+  epfEmployee         Float              @default(0.0)
+  epfEmployer         Float              @default(0.0)
+  esicEmployee        Float              @default(0.0)
+  esicEmployer        Float              @default(0.0)
+  pt                  Float              @default(0.0)
+  tds                 Float              @default(0.0)
+  otherDeductions     Float              @default(0.0)
+  totalDeductions     Float
+  
+  netSalary           Float
+  employerTotalCost   Float
+  
+  bankAccountMasked   String?
+  ifscCode            String?
+  bankName            String?
+  panMasked           String?
+  uanMasked           String?
+  
+  calculationSnapshot Json?
+  statutoryConfigSnapshot Json?          // Phase 7A Additive Field for Historical Statutory Snapshot
+  createdAt           DateTime           @default(now())
+
+  payrollCycle        PayrollCycle       @relation(fields: [payrollCycleId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollCycleId, employeeId])
+  @@index([employeeId, payrollCycleId])
+}
+
+model PayrollException {
+  id                  String             @id @default(uuid())
+  payrollCycleId      String
+  employeeId          String?
+  category            ExceptionCategory
+  severity            ExceptionSeverity  @default(WARNING)
+  title               String
+  description         String
+  detectedValue       String?
+  expectedValue       String?
+  isResolved          Boolean            @default(false)
+  resolutionAction    String?
+  resolvedById        String?
+  resolvedAt          DateTime?
+  createdAt           DateTime           @default(now())
+
+  payrollCycle        PayrollCycle       @relation(fields: [payrollCycleId], references: [id], onDelete: Cascade)
+  employee            Employee?          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([payrollCycleId, severity, isResolved])
+}
+
+model PayrollAdjustment {
+  id                  String             @id @default(uuid())
+  companyId           String
+  payrollCycleId      String
+  employeeId          String
+  type                AdjustmentType
+  amount              Float
+  taxable             Boolean            @default(true)
+  reason              String
+  appliedInCycleId    String?
+  createdById         String
+  approvedById        String?
+  approvedAt          DateTime?
+  createdAt           DateTime           @default(now())
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payrollCycle        PayrollCycle       @relation(fields: [payrollCycleId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, payrollCycleId])
+}
+
+model PayrollExport {
+  id                  String             @id @default(uuid())
+  payrollCycleId      String
+  exportType          String
+  fileName            String
+  totalRecords        Int
+  totalDisbursedAmount Float
+  exportedById        String
+  ipAddress           String?
+  createdAt           DateTime           @default(now())
+
+  payrollCycle        PayrollCycle       @relation(fields: [payrollCycleId], references: [id], onDelete: Cascade)
+
+  @@index([payrollCycleId, exportType])
+}
+
+// --------------------------------------------------
+// 8. PHASE 7A STATUTORY FOUNDATION (ADDITIVE)
+// --------------------------------------------------
+enum StatutoryConfigType {
+  EPF
+  ESIC
+  PROFESSIONAL_TAX
+  TDS
+  GRATUITY
+  OTHER_STATUTORY
+}
+
+enum StatutoryConfigStatus {
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+  CANCELLED
+}
+
+enum CompliancePeriodStatus {
+  OPEN
+  IN_PROGRESS
+  PREPARED
+  FILED
+  RECONCILED
+  CLOSED
+}
+
+enum TaxRegime {
+  OLD_REGIME
+  NEW_REGIME_115BAC
+}
+
+enum ComplianceExceptionSeverity {
+  BLOCKING
+  WARNING
+  INFORMATION
+}
+
+enum ComplianceExceptionStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+}
+
+model StatutoryConfiguration {
+  id                  String                @id @default(uuid())
+  companyId           String
+  configType          StatutoryConfigType
+  jurisdictionState   String?               // Optional State code e.g. "KA", "MH", "TN", or null for national
+  financialYear       String                // e.g. "2026-2027"
+  version             Int                   @default(1)
+  status              StatutoryConfigStatus @default(DRAFT)
+  effectiveFrom       DateTime              @db.Date
+  effectiveTo         DateTime?             @db.Date
+  rulesJson           Json                  // Structured JSON for statutory parameters/slabs
+  description         String?
+  createdById         String
+  approvedById        String?
+  approvedAt          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  company             Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, configType, status])
+  @@index([companyId, financialYear])
+  @@index([companyId, effectiveFrom, effectiveTo])
+}
+
+model CompliancePeriod {
+  id                  String                 @id @default(uuid())
+  companyId           String
+  financialYear       String                 // "2026-2027"
+  month               Int                    // 1 - 12
+  quarter             String                 // "Q1", "Q2", "Q3", "Q4"
+  startDate           DateTime               @db.Date
+  endDate             DateTime               @db.Date
+  status              CompliancePeriodStatus @default(OPEN)
+  remarks             String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  company             Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  documents           ComplianceDocument[]
+  exceptions          ComplianceException[]
+
+  @@unique([companyId, financialYear, month])
+  @@index([companyId, status])
+}
+
+model EmployeeStatutoryProfile {
+  id                  String             @id @default(uuid())
+  companyId           String
+  employeeId          String
+  financialYear       String             // "2026-2027"
+  taxRegime           TaxRegime          @default(NEW_REGIME_115BAC)
+  isEpfApplicable     Boolean            @default(true)
+  isEsicApplicable    Boolean            @default(true)
+  ptStateCode         String?            // e.g. "TN", "KA", "MH"
+  panStatus           String             @default("VALID") // VALID, INVALID, NOT_PROVIDED
+  effectiveFrom       DateTime           @db.Date
+  effectiveTo         DateTime?          @db.Date
+  source              String             @default("SYSTEM_DEFAULT")
+  createdById         String
+  approvedById        String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, financialYear, effectiveFrom])
+  @@index([companyId, financialYear])
+}
+
+model ComplianceDocument {
+  id                  String             @id @default(uuid())
+  companyId           String
+  statutoryPeriodId   String?
+  payrollCycleId      String?
+  documentType        String             // "EPF_ECR", "ESIC_RETURN", "PT_RETURN", "FORM_24Q", "CHALLAN_RECEIPT"
+  fileName            String
+  filePayloadPath     String?
+  fileChecksumSha256  String?
+  version             Int                @default(1)
+  status              String             @default("GENERATED")
+  metadata            Json?
+  createdById         String
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  statutoryPeriod     CompliancePeriod?  @relation(fields: [statutoryPeriodId], references: [id], onDelete: SetNull)
+  payrollCycle        PayrollCycle?      @relation(fields: [payrollCycleId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, documentType])
+  @@index([companyId, statutoryPeriodId])
+}
+
+model ComplianceException {
+  id                  String                       @id @default(uuid())
+  companyId           String
+  employeeId          String?
+  payrollCycleId      String?
+  statutoryPeriodId   String?
+  category            StatutoryConfigType          @default(OTHER_STATUTORY)
+  severity            ComplianceExceptionSeverity  @default(WARNING)
+  status              ComplianceExceptionStatus    @default(OPEN)
+  title               String
+  description         String
+  resolutionNotes     String?
+  detectedValue       String?
+  expectedValue       String?
+  createdById         String
+  resolvedById        String?
+  resolvedAt          DateTime?
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+
+  company             Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee?                    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  payrollCycle        PayrollCycle?                @relation(fields: [payrollCycleId], references: [id], onDelete: SetNull)
+  statutoryPeriod     CompliancePeriod?            @relation(fields: [statutoryPeriodId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, severity])
+  @@index([companyId, category])
+}
+
+// --------------------------------------------------
+// 9. PRESERVED EMPLOYEE MODEL (Additive Relations)
+// --------------------------------------------------
 enum EmploymentStatus {
   DRAFT
   ACTIVE
-  PROBATION
-  NOTICE_PERIOD
-  TERMINATED
-  RESIGNED
-  RETIRED
+  ON_NOTICE
+  INACTIVE
+  EXITED
 }
 
 enum Gender {
@@ -29,119 +985,90 @@ enum Gender {
   OTHER
 }
 
-enum ComponentCategory {
-  EARNING
-  DEDUCTION
-  STATUTORY_EMPLOYEE
-  STATUTORY_EMPLOYER
-  REIMBURSEMENT
-}
-
-enum CalculationType {
-  FLAT
-  PERCENTAGE
-  FORMULA
-}
-
-enum PayrollStatus {
-  DRAFT
-  PROCESSING
-  REVIEW
-  APPROVED
-  FINALIZED
-  DISBURSED
-  VOID
-}
-
-enum TaxRegime {
-  OLD
-  NEW_115BAC
-}
-
-model Tenant {
-  id         String       @id @default(uuid())
-  slug       String       @unique
-  name       String
-  status     TenantStatus @default(ACTIVE)
-  created_at DateTime     @default(now())
-
-  companies    Company[]
-  employees    Employee[]
-  payroll_runs PayrollRun[]
-
-  @@map("tenants")
-}
-
-model Company {
-  id           String   @id @default(uuid())
-  tenant_id    String
-  legal_name   String
-  pan_hash     String
-  tan          String
-  created_at   DateTime @default(now())
-
-  tenant       Tenant       @relation(fields: [tenant_id], references: [id], onDelete: Restrict)
-  employees    Employee[]
-  payroll_runs PayrollRun[]
-
-  @@map("companies")
-}
-
 model Employee {
-  id              String           @id @default(uuid())
-  tenant_id       String
-  company_id      String
-  employee_code   String
-  first_name      String
-  last_name       String
-  gender          Gender
-  date_of_joining DateTime         @db.Date
-  status          EmploymentStatus @default(ACTIVE)
-  pan_hash        String           @default("SAMPLE_PAN")
-  created_at      DateTime         @default(now())
+  id               String             @id @default(uuid())
+  companyId        String?
+  employeeCode     String             @unique
+  name             String
+  email            String             @unique
+  phone            String?
+  gender           Gender             @default(OTHER)
+  dateOfBirth      DateTime?
+  dateOfJoining    DateTime           @default(now())
+  employmentStatus EmploymentStatus   @default(ACTIVE)
 
-  tenant            Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Restrict)
-  company           Company           @relation(fields: [company_id], references: [id], onDelete: Restrict)
-  payroll_employees PayrollEmployee[]
+  department       String?
+  designation      String?
+  location         String?            @default("Headquarters")
 
-  @@unique([company_id, employee_code])
-  @@map("employees")
+  departmentId     String?
+  designationId    String?
+  locationId       String?
+  managerId        String?
+
+  monthlyGross     Float?
+  basicSalary      Float?
+  hra              Float?
+  specialAllowance Float?
+  pan              String?
+  uan              String?
+  bankAccount      String?
+  ifsc             String?
+  aadhaar          String?
+  esicNumber       String?
+  bankName         String?
+  resignationDate  DateTime?
+  lastWorkingDay   DateTime?
+  exitReason       String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  company          Company?           @relation(fields: [companyId], references: [id])
+  user             User?
+  manager          Employee?          @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates     Employee[]         @relation("ManagerSubordinates")
+  documents        EmployeeDocument[]
+  deptRel          Department?        @relation("EmployeeDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  desigRel         Designation?       @relation("EmployeeDesignation", fields: [designationId], references: [id], onDelete: SetNull)
+  locRel           Location?          @relation("EmployeeLocation", fields: [locationId], references: [id], onDelete: SetNull)
+  headedDepts      Department[]       @relation("DepartmentHead")
+  attendanceLogs   AttendanceRecord[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+  approvedLeaves   LeaveRequest[]     @relation("LeaveApprover")
+  shiftAssignments ShiftAssignment[]
+  salaryAssignments EmployeeSalaryAssignment[]
+  requestedRevisions SalaryRevision[] @relation("RevisionRequester")
+  actionedRevisions  SalaryRevision[] @relation("RevisionActioner")
+  payrollRecords   PayrollRecord[]
+  payrollExceptions PayrollException[]
+  payrollAdjustments PayrollAdjustment[]
+
+  // Phase 7A Additions
+  statutoryProfiles EmployeeStatutoryProfile[]
+  complianceExceptions ComplianceException[]
+
+  @@index([companyId, employmentStatus])
+  @@index([employeeCode])
+  @@index([email])
+  @@index([departmentId])
+  @@index([designationId])
+  @@index([locationId])
 }
 
-model PayrollRun {
-  id               String        @id @default(uuid())
-  tenant_id        String
-  company_id       String
-  payroll_month    Int
-  payroll_year     Int
-  total_gross      Decimal       @default(0.00) @db.Decimal(14, 2)
-  total_deductions Decimal       @default(0.00) @db.Decimal(14, 2)
-  total_net        Decimal       @default(0.00) @db.Decimal(14, 2)
-  status           PayrollStatus @default(DRAFT)
-  created_at       DateTime      @default(now())
+model EmployeeDocument {
+  id                String       @id @default(uuid())
+  employeeId        String
+  documentType      String
+  title             String
+  fileName          String
+  fileUrl           String
+  fileSize          Int          @default(0)
+  mimeType          String       @default("application/pdf")
+  uploadedBy        String
+  createdAt         DateTime     @default(now())
 
-  tenant            Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Restrict)
-  company           Company           @relation(fields: [company_id], references: [id], onDelete: Restrict)
-  payroll_employees PayrollEmployee[]
+  employee          Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@unique([company_id, payroll_month, payroll_year])
-  @@map("payroll_runs")
-}
-
-model PayrollEmployee {
-  id               String   @id @default(uuid())
-  payroll_run_id   String
-  employee_id      String
-  paid_days        Decimal  @db.Decimal(4, 2)
-  lop_days         Decimal  @db.Decimal(4, 2)
-  earned_gross     Decimal  @db.Decimal(12, 2)
-  total_deductions Decimal  @db.Decimal(12, 2)
-  net_pay          Decimal  @db.Decimal(12, 2)
-  created_at       DateTime @default(now())
-
-  payroll_run PayrollRun @relation(fields: [payroll_run_id], references: [id], onDelete: Cascade)
-  employee    Employee   @relation(fields: [employee_id], references: [id], onDelete: Restrict)
-
-  @@unique([payroll_run_id, employee_id])
-  @@map("payroll_employees")
+  @@index([employeeId, documentType])
 }
