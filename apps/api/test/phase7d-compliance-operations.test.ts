@@ -15,8 +15,8 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
   let challanId: string;
 
   beforeAll(async () => {
-    // 1. Fixture cleanup
-    const testCodes = ['TEST-7D-TENANT-A', 'TEST-7D-TENANT-B'];
+    // 1. Fixture cleanup for idempotence
+    const testCodes = ['TEST-7D-TENANT-A', 'TEST-7D-TENANT-B', 'TEST-NO-TAN'];
     await prisma.complianceException.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.complianceDocument.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.compliancePeriod.deleteMany({ where: { company: { code: { in: testCodes } } } });
@@ -294,6 +294,9 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
   });
 
   it('[FORM24Q 02] Missing Company TAN generates BLOCKING ComplianceException', async () => {
+    await prisma.complianceException.deleteMany({ where: { company: { code: 'TEST-NO-TAN' } } });
+    await prisma.company.deleteMany({ where: { code: 'TEST-NO-TAN' } });
+
     const noTanComp = await prisma.company.create({
       data: { code: 'TEST-NO-TAN', name: 'No TAN Corp' },
     });
@@ -396,11 +399,10 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
   });
 
   it('[RECON 02] TDS Reconciliation reports MISSING_CHALLAN when no deposits exist', async () => {
-    // Seed Q2 payroll cycle with TDS deduction but no deposited challans
     await prisma.payrollCycle.create({
       data: {
         companyId,
-        month: 7, // July -> Q2
+        month: 7,
         year: 2026,
         periodStartDate: new Date('2026-07-01'),
         periodEndDate: new Date('2026-07-31'),
