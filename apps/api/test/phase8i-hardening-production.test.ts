@@ -131,7 +131,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
   });
   it('E04: enforces employee self-evaluation IDOR scoping', async () => {
     const app = await prisma.appraisal.create({ data: { companyId: companyAId, cycleId, employeeId: employeeBId } });
-    await expect(PerformanceService.submitSelfAppraisal({ companyId: companyAId, appraisalId: app.id, employeeId: employeeAId, selfRating: 5.0, qualitativeFeedback: 'Malicious' })).rejects.toThrow('IDOR Protection');
+    await expect(PerformanceService.submitSelfAppraisal({ companyId: companyAId, appraisalId: app.id, employeeId: employeeAId, selfRating: 5.0, qualitativeFeedback: 'Malicious', actorEmail: 'worker.a@sarwin.com', actorRole: 'EMPLOYEE' })).rejects.toThrow('IDOR Protection');
   });
   it('E05: restricts goal creation to authorized employee owner', async () => {
     const goal = await PerformanceService.createGoal({ companyId: companyAId, cycleId, employeeId: employeeAId, title: 'Valid Goal', target: '100%', actorEmail: 'worker.a@sarwin.com', actorRole: 'EMPLOYEE' });
@@ -236,7 +236,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(() => overrideCheck(true, { gross: 9999 })).toThrow('Immutable');
   });
   it('K04: verifies locked appraisal records throw immutability errors on update attempts', async () => {
-    await expect(PerformanceService.submitSelfAppraisal({ companyId: companyAId, appraisalId, employeeId: employeeAId, selfRating: 1.0, qualitativeFeedback: 'Tamper' })).rejects.toThrow('immutable');
+    await expect(PerformanceService.submitSelfAppraisal({ companyId: companyAId, appraisalId, employeeId: employeeAId, selfRating: 1.0, qualitativeFeedback: 'Tamper', actorEmail: 'worker.a@sarwin.com', actorRole: 'EMPLOYEE' })).rejects.toThrow('immutable');
   });
   it('K05: validates audit logging captures immutability rejection events', () => {
     const logRejection = (err: string) => err.includes('immutable');
