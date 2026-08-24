@@ -78,6 +78,11 @@ model Company {
   disbursementBatches       DisbursementBatch[]
   helpdeskTickets           HelpdeskTicket[]
 
+  // Phase 8H Additions
+  performanceCycles         PerformanceCycle[]
+  goals                     Goal[]
+  appraisals                Appraisal[]
+
   @@index([code])
 }
 
@@ -1594,7 +1599,119 @@ model TicketComment {
 }
 
 // --------------------------------------------------
-// 14. PRESERVED EMPLOYEE MODEL (Additive Relations)
+// 14. PHASE 8H PERFORMANCE MANAGEMENT & APPRAISALS
+// --------------------------------------------------
+enum PerformanceCycleStatus {
+  DRAFT
+  ACTIVE
+  APPRAISAL_PHASE
+  REVIEW_PHASE
+  LOCKED
+}
+
+enum AppraisalStatus {
+  DRAFT
+  SELF_SUBMITTED
+  MANAGER_REVIEWED
+  HR_APPROVED
+  LOCKED
+}
+
+model PerformanceCycle {
+  id          String                 @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  startDate   DateTime               @db.Date
+  endDate     DateTime               @db.Date
+  status      PerformanceCycleStatus @default(DRAFT)
+  createdById String
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  company     Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  goals       Goal[]
+  appraisals  Appraisal[]
+
+  @@index([companyId, status])
+}
+
+model Goal {
+  id                 String       @id @default(uuid())
+  companyId          String
+  cycleId            String
+  employeeId         String
+  title              String
+  description        String?
+  category           String       @default("OKRs")
+  weightage          Float        @default(100.0)
+  target             String
+  progressPercentage Float        @default(0.0)
+  status             String       @default("IN_PROGRESS")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  company            Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cycle              PerformanceCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee           Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  keyResults         KeyResult[]
+
+  @@index([companyId, employeeId])
+  @@index([cycleId])
+}
+
+model KeyResult {
+  id                 String   @id @default(uuid())
+  goalId             String
+  title              String
+  target             String
+  currentValue       String   @default("0")
+  progressPercentage Float    @default(0.0)
+  weightage          Float    @default(100.0)
+  status             String   @default("PENDING")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  goal               Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+}
+
+model Appraisal {
+  id                        String          @id @default(uuid())
+  companyId                 String
+  cycleId                   String
+  employeeId                String
+  reviewerId                String?
+  approverId                String?
+  selfRating                Float?
+  managerRating             Float?
+  finalScore                Float?
+  qualitativeFeedback       String?
+  strengths                 String?
+  improvementAreas          String?
+  meritRecommendation       Boolean         @default(false)
+  recommendedIncrementPct   Float?          @default(0.0)
+  recommendedIncrementAmt   Float?          @default(0.0)
+  status                    AppraisalStatus @default(DRAFT)
+  submittedAt               DateTime?
+  reviewedAt                DateTime?
+  approvedAt                DateTime?
+  lockedAt                  DateTime?
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+
+  company                   Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cycle                     PerformanceCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee                  Employee        @relation("AppraisalEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer                  Employee?       @relation("AppraisalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@unique([cycleId, employeeId])
+  @@index([companyId, status])
+}
+
+// --------------------------------------------------
+// 15. PRESERVED EMPLOYEE MODEL (Additive Relations)
 // --------------------------------------------------
 enum EmploymentStatus {
   DRAFT
@@ -1689,10 +1806,13 @@ model Employee {
   fnfSettlement          FnFSettlement?      @relation("EmployeeFnFSettlement")
 
   paymentInstructions    PaymentInstruction[]
-
-  // Phase 8G Additions
   createdTickets         HelpdeskTicket[]    @relation("TicketCreator")
   assignedTickets        HelpdeskTicket[]    @relation("TicketAssignee")
+
+  // Phase 8H Additions
+  goals                  Goal[]
+  appraisalsAsEmployee   Appraisal[]         @relation("AppraisalEmployee")
+  appraisalsAsReviewer   Appraisal[]         @relation("AppraisalReviewer")
 
   @@index([companyId, employmentStatus])
   @@index([employeeCode])
