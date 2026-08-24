@@ -78,6 +78,9 @@ model Company {
   resignationRequests       ResignationRequest[]
   fnfSettlements            FnFSettlement[]
 
+  // Phase 8E Additions
+  savedReports              SavedReport[]
+
   @@index([code])
 }
 
@@ -762,7 +765,6 @@ model PayrollCycle {
   adjustments         PayrollAdjustment[]
   exports             PayrollExport[]
 
-  // Phase 7 & 8 Additions
   complianceDocuments ComplianceDocument[]
   complianceExceptions ComplianceException[]
   challanAllocations  ChallanAllocation[]
@@ -1371,8 +1373,8 @@ model ResignationRequest {
 model ExitClearanceItem {
   id                  String             @id @default(uuid())
   resignationId       String
-  departmentName      String             // IT, ADMIN, FINANCE, HR
-  itemName            String             // Laptop, Access Card, Travel Advance
+  departmentName      String
+  itemName            String
   isCleared           Boolean            @default(false)
   recoveryAmount      Float              @default(0.0)
   clearedById         String?
@@ -1427,7 +1429,25 @@ model FnFSettlement {
 }
 
 // --------------------------------------------------
-// 11. PRESERVED EMPLOYEE MODEL (Additive Relations)
+// 11. PHASE 8E EXECUTIVE ANALYTICS & SAVED REPORTS
+// --------------------------------------------------
+model SavedReport {
+  id            String   @id @default(uuid())
+  companyId     String
+  createdById   String
+  name          String
+  description   String?
+  configuration Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdById])
+}
+
+// --------------------------------------------------
+// 12. PRESERVED EMPLOYEE MODEL (Additive Relations)
 // --------------------------------------------------
 enum EmploymentStatus {
   DRAFT
@@ -1503,24 +1523,20 @@ model Employee {
   payrollExceptions PayrollException[]
   payrollAdjustments PayrollAdjustment[]
 
-  // Phase 7 Additions
   statutoryProfiles EmployeeStatutoryProfile[]
   complianceExceptions ComplianceException[]
   taxDeclarations   EmployeeTaxDeclaration[]
   investmentProofs  InvestmentProofDocument[]
   previousEmployerIncomes PreviousEmployerIncome[]
 
-  // Phase 8A Additions
   regularizationRequests AttendanceRegularizationRequest[] @relation("EmployeeRegularizations")
   approvedRegularizations AttendanceRegularizationRequest[] @relation("RegularizationApprover")
   notifications          EmployeeNotification[]
 
-  // Phase 8B Additions
   fbpAllocations         FlexibleBenefitAllocation[]
   expenseClaims          EmployeeExpenseClaim[]
   reviewedClaims         EmployeeExpenseClaim[] @relation("ClaimReviewer")
 
-  // Phase 8C Additions
   resignation            ResignationRequest? @relation("EmployeeResignation")
   reviewedResignations   ResignationRequest[] @relation("ResignationReviewer")
   fnfSettlement          FnFSettlement?      @relation("EmployeeFnFSettlement")
