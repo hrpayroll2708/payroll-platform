@@ -586,7 +586,7 @@ model SalaryRevision {
   updatedAt           DateTime           @updatedAt
 
   company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation("EmployeeSalaryRevisions", fields: [employeeId], references: [id], onDelete: Cascade)
   requestedBy         Employee           @relation("RevisionRequester", fields: [requestedById], references: [id], onDelete: Restrict)
   actionedBy          Employee?          @relation("RevisionActioner", fields: [actionedById], references: [id], onDelete: SetNull)
   createdAssignment   EmployeeSalaryAssignment? @relation("RevisionAssignment", fields: [assignmentId], references: [id], onDelete: SetNull)
@@ -872,9 +872,9 @@ model StatutoryConfiguration {
 model CompliancePeriod {
   id                  String                 @id @default(uuid())
   companyId           String
-  financialYear       String
-  month               Int
-  quarter             String
+  financialYear       String                 // "2026-2027"
+  month               Int                    // 1 - 12
+  quarter             String                 // "Q1", "Q2", "Q3", "Q4"
   startDate           DateTime               @db.Date
   endDate             DateTime               @db.Date
   status              CompliancePeriodStatus @default(OPEN)
@@ -894,7 +894,7 @@ model EmployeeStatutoryProfile {
   id                  String             @id @default(uuid())
   companyId           String
   employeeId          String
-  financialYear       String
+  financialYear       String             // "2026-2027"
   taxRegime           TaxRegime          @default(NEW_REGIME_115BAC)
   isEpfApplicable     Boolean            @default(true)
   isEsicApplicable    Boolean            @default(true)
@@ -1038,6 +1038,7 @@ model Employee {
   approvedLeaves   LeaveRequest[]     @relation("LeaveApprover")
   shiftAssignments ShiftAssignment[]
   salaryAssignments EmployeeSalaryAssignment[]
+  salaryRevisions  SalaryRevision[]   @relation("EmployeeSalaryRevisions")
   requestedRevisions SalaryRevision[] @relation("RevisionRequester")
   actionedRevisions  SalaryRevision[] @relation("RevisionActioner")
   payrollRecords   PayrollRecord[]
