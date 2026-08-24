@@ -51,12 +51,15 @@ model Company {
   payrollCycles     PayrollCycle[]
   payrollAdjustments PayrollAdjustment[]
 
-  // Phase 7A Additions
+  // Phase 7A & 7C Additions
   statutoryConfigurations   StatutoryConfiguration[]
   compliancePeriods         CompliancePeriod[]
   employeeStatutoryProfiles EmployeeStatutoryProfile[]
   complianceDocuments       ComplianceDocument[]
   complianceExceptions      ComplianceException[]
+  taxDeclarations           EmployeeTaxDeclaration[]
+  investmentProofs          InvestmentProofDocument[]
+  previousEmployerIncomes   PreviousEmployerIncome[]
 
   @@index([code])
 }
@@ -799,7 +802,7 @@ model PayrollExport {
 }
 
 // --------------------------------------------------
-// 8. PHASE 7A STATUTORY FOUNDATION (ADDITIVE)
+// 8. PHASE 7A & 7C STATUTORY & TAX ARCHITECTURE
 // --------------------------------------------------
 enum StatutoryConfigType {
   EPF
@@ -829,6 +832,33 @@ enum CompliancePeriodStatus {
 enum TaxRegime {
   OLD_REGIME
   NEW_REGIME_115BAC
+}
+
+enum DeclarationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  LOCKED
+}
+
+enum ProofStatus {
+  UPLOADED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum TaxSectionCategory {
+  SECTION_80C
+  SECTION_80D
+  SECTION_80CCD_1B
+  SECTION_24_HOME_LOAN
+  SECTION_80E_EDUCATION
+  SECTION_80G_DONATIONS
+  SECTION_10_HRA_EXEMPTION
+  OTHER_EXEMPTIONS
 }
 
 enum ComplianceExceptionSeverity {
@@ -872,9 +902,9 @@ model StatutoryConfiguration {
 model CompliancePeriod {
   id                  String                 @id @default(uuid())
   companyId           String
-  financialYear       String                 // "2026-2027"
-  month               Int                    // 1 - 12
-  quarter             String                 // "Q1", "Q2", "Q3", "Q4"
+  financialYear       String
+  month               Int
+  quarter             String
   startDate           DateTime               @db.Date
   endDate             DateTime               @db.Date
   status              CompliancePeriodStatus @default(OPEN)
@@ -894,7 +924,7 @@ model EmployeeStatutoryProfile {
   id                  String             @id @default(uuid())
   companyId           String
   employeeId          String
-  financialYear       String             // "2026-2027"
+  financialYear       String
   taxRegime           TaxRegime          @default(NEW_REGIME_115BAC)
   isEpfApplicable     Boolean            @default(true)
   isEsicApplicable    Boolean            @default(true)
@@ -912,6 +942,84 @@ model EmployeeStatutoryProfile {
   employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, financialYear, effectiveFrom])
+  @@index([companyId, financialYear])
+}
+
+model EmployeeTaxDeclaration {
+  id                  String             @id @default(uuid())
+  companyId           String
+  employeeId          String
+  financialYear       String             // "2026-2027"
+  taxRegime           TaxRegime          @default(NEW_REGIME_115BAC)
+  status              DeclarationStatus  @default(DRAFT)
+  sectionCategory     TaxSectionCategory
+  itemCode            String             // e.g. "80C_PPF", "80C_ELSS", "80D_HEALTH_SELF", "SEC24_INTEREST"
+  description         String?
+  declaredAmount      Float              @default(0.0)
+  approvedAmount      Float              @default(0.0)
+  submittedAt         DateTime?
+  reviewedById        String?
+  reviewedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  proofs              InvestmentProofDocument[]
+
+  @@index([companyId, employeeId, financialYear])
+  @@index([employeeId, status])
+}
+
+model InvestmentProofDocument {
+  id                  String             @id @default(uuid())
+  companyId           String
+  declarationId       String
+  employeeId          String
+  documentType        String             // "RECEIPT", "POLICY_CERTIFICATE", "FORM16_PREV"
+  fileName            String
+  fileUrl             String
+  fileSize            Int                @default(0)
+  mimeType            String             @default("application/pdf")
+  fileChecksumSha256  String?
+  amountClaimed       Float              @default(0.0)
+  amountApproved      Float              @default(0.0)
+  status              ProofStatus        @default(UPLOADED)
+  reviewerId          String?
+  reviewedAt          DateTime?
+  rejectionReason     String?
+  uploadedAt          DateTime           @default(now())
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  declaration         EmployeeTaxDeclaration @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId])
+  @@index([declarationId, status])
+}
+
+model PreviousEmployerIncome {
+  id                  String             @id @default(uuid())
+  companyId           String
+  employeeId          String
+  financialYear       String             // "2026-2027"
+  employerName        String
+  grossSalary         Float              @default(0.0)
+  exemptions          Float              @default(0.0)
+  tdsDeducted         Float              @default(0.0)
+  epfDeducted         Float              @default(0.0)
+  ptDeducted          Float              @default(0.0)
+  isApproved          Boolean            @default(false)
+  approvedById        String?
+  approvedAt          DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, financialYear])
   @@index([companyId, financialYear])
 }
 
@@ -1045,9 +1153,12 @@ model Employee {
   payrollExceptions PayrollException[]
   payrollAdjustments PayrollAdjustment[]
 
-  // Phase 7A Additions
+  // Phase 7A & 7C Additions
   statutoryProfiles EmployeeStatutoryProfile[]
   complianceExceptions ComplianceException[]
+  taxDeclarations   EmployeeTaxDeclaration[]
+  investmentProofs  InvestmentProofDocument[]
+  previousEmployerIncomes PreviousEmployerIncome[]
 
   @@index([companyId, employmentStatus])
   @@index([employeeCode])
