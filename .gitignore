@@ -1,4 +1,8 @@
-node_modules/
-.next/
-.env
-dist/
+﻿node_modules
+.next
+dist
+*.mp4
+*.zip
+screenshots/
+unique_screens/
+detect_screens.py

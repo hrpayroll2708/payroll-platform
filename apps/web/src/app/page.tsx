@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 
 const BACKEND_URL = "https://payroll-platform-i9rn.onrender.com";
+const INR = "\u20B9"; // Unicode Indian Rupee symbol
 
 export default function SarwinHRPayrollApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -16,7 +17,7 @@ export default function SarwinHRPayrollApp() {
   const [payslipModalData, setPayslipModalData] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // New Employee Form State
+  // New Employee State
   const [newEmp, setNewEmp] = useState({
     name: "",
     email: "",
@@ -29,7 +30,7 @@ export default function SarwinHRPayrollApp() {
     ifsc: "HDFC0001234"
   });
 
-  // Payroll State
+  // Payroll Calculation State
   const [payrollData, setPayrollData] = useState(null);
   const [lopRecords, setLopRecords] = useState({});
   const [payrollStep, setPayrollStep] = useState(1);
@@ -47,24 +48,18 @@ export default function SarwinHRPayrollApp() {
   const fetchDashboardStats = async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/dashboard/stats`);
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
-      }
-    } catch (err) {
-      console.error("Failed to load dashboard stats", err);
+      if (res.ok) setStats(await res.json());
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const fetchEmployees = async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/employees`);
-      if (res.ok) {
-        const data = await res.json();
-        setEmployees(data);
-      }
-    } catch (err) {
-      console.error("Failed to load employees", err);
+      if (res.ok) setEmployees(await res.json());
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -92,10 +87,10 @@ export default function SarwinHRPayrollApp() {
         });
         await fetchEmployees();
         await fetchDashboardStats();
-        showToast("Employee enrolled in SARWIN roster.");
+        showToast("Employee successfully enrolled in SARWIN HRPAYROLL.");
       }
     } catch (err) {
-      showToast("Error saving employee record.");
+      showToast("Error enrolling employee.");
     } finally {
       setLoading(false);
     }
@@ -113,10 +108,10 @@ export default function SarwinHRPayrollApp() {
         const data = await res.json();
         setPayrollData(data);
         setPayrollStep(4);
-        showToast("August 2026 Statutory Payroll calculated successfully.");
+        showToast("August 2026 Statutory Payroll computed successfully.");
       }
     } catch (err) {
-      showToast("Failed to compute statutory payroll cycle.");
+      showToast("Failed to compute payroll.");
     } finally {
       setLoading(false);
     }
@@ -124,7 +119,7 @@ export default function SarwinHRPayrollApp() {
 
   const downloadNeftBatch = () => {
     if (!payrollData) return;
-    const header = "Beneficiary_Account_No,IFSC_Code,Disbursement_Amount,Beneficiary_Name,Remarks\n";
+    const header = "Beneficiary_Account_No,IFSC_Code,Amount,Beneficiary_Name,Remarks\n";
     const rows = payrollData.calculations.map(
       (c) => `${c.bankAccount},${c.ifsc},${c.netSalary},"${c.name}",Salary August 2026`
     ).join("\n");
@@ -133,11 +128,11 @@ export default function SarwinHRPayrollApp() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "SARWIN_NEFT_Disbursement_August_2026.csv");
+    link.setAttribute("download", "SARWIN_NEFT_Disbursement_Aug_2026.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Bank NEFT disbursement batch file downloaded.");
+    showToast("NEFT Disbursement Batch file downloaded.");
   };
 
   const filteredEmployees = employees.filter((emp) => {
@@ -149,25 +144,21 @@ export default function SarwinHRPayrollApp() {
     return matchesSearch && matchesDept;
   });
 
-  const exceptions = employees.filter(
-    (emp) => !emp.bankAccount || !emp.pan || !emp.uan || (emp.monthlyGross || 0) <= 0
-  );
-
   return (
     <div className="flex h-screen bg-[#0F172A] text-slate-100 font-sans antialiased overflow-hidden">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl z-50 text-xs font-semibold flex items-center gap-3 border border-slate-700">
+        <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl z-50 text-xs font-bold flex items-center gap-3 border border-slate-700">
           <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
           {toastMessage}
         </div>
       )}
 
-      {/* Enterprise Left Sidebar Shell */}
-      <aside className="w-64 bg-[#090E1A] text-slate-300 flex flex-col justify-between shrink-0 border-r border-slate-800/80">
+      {/* SARWIN Sidebar */}
+      <aside className="w-64 bg-[#090E1A] text-slate-300 flex flex-col justify-between shrink-0 border-r border-slate-800">
         <div>
           {/* Brand Header */}
-          <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
+          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center font-extrabold text-white text-base shadow-lg">
                 S
@@ -181,14 +172,11 @@ export default function SarwinHRPayrollApp() {
                 </p>
               </div>
             </div>
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
+            <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
           </div>
 
-          {/* Navigation Links */}
-          <div className="p-3 space-y-5 text-xs">
+          {/* Navigation */}
+          <div className="p-3 space-y-4 text-xs">
             <div>
               <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                 Core Systems
@@ -196,10 +184,10 @@ export default function SarwinHRPayrollApp() {
               <nav className="space-y-1">
                 <button
                   onClick={() => setActiveTab("dashboard")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "dashboard"
-                      ? "bg-blue-600 text-white font-semibold shadow"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
@@ -207,10 +195,10 @@ export default function SarwinHRPayrollApp() {
                 </button>
                 <button
                   onClick={() => setActiveTab("employees")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "employees"
-                      ? "bg-blue-600 text-white font-semibold shadow"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
@@ -226,10 +214,10 @@ export default function SarwinHRPayrollApp() {
               <nav className="space-y-1">
                 <button
                   onClick={() => setActiveTab("attendance")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "attendance"
-                      ? "bg-blue-600 text-white font-semibold shadow"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -237,10 +225,10 @@ export default function SarwinHRPayrollApp() {
                 </button>
                 <button
                   onClick={() => setActiveTab("payroll")}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl font-medium transition-all ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "payroll"
-                      ? "bg-blue-600 text-white font-semibold shadow"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -253,10 +241,10 @@ export default function SarwinHRPayrollApp() {
                 </button>
                 <button
                   onClick={() => setActiveTab("compliance")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "compliance"
-                      ? "bg-blue-600 text-white font-semibold shadow"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
@@ -264,10 +252,10 @@ export default function SarwinHRPayrollApp() {
                 </button>
                 <button
                   onClick={() => setActiveTab("reports")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "reports"
-                      ? "bg-blue-600 text-white font-semibold shadow"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -278,8 +266,8 @@ export default function SarwinHRPayrollApp() {
           </div>
         </div>
 
-        {/* User Identity Profile Footer */}
-        <div className="p-4 border-t border-slate-800/80 bg-[#060913] flex items-center justify-between">
+        {/* User Footer */}
+        <div className="p-4 border-t border-slate-800 bg-[#060913] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-bold text-xs text-blue-400">
               AD
@@ -294,7 +282,7 @@ export default function SarwinHRPayrollApp() {
 
       {/* Main Workspace Frame */}
       <main className="flex-1 flex flex-col bg-[#F8FAFC] text-slate-800 overflow-y-auto">
-        {/* Top Global Command Bar */}
+        {/* Header */}
         <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block"></span>
@@ -306,20 +294,20 @@ export default function SarwinHRPayrollApp() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setModalOpen(true)}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm flex items-center gap-2"
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow transition"
             >
               + Enrol Employee
             </button>
             <button
               onClick={() => { setActiveTab("payroll"); setPayrollStep(1); }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow transition"
             >
               Execute Payroll Run
             </button>
           </div>
         </header>
 
-        {/* View 1: Executive Dashboard */}
+        {/* Dashboard */}
         {activeTab === "dashboard" && (
           <div className="p-8 space-y-6 max-w-7xl">
             <div>
@@ -329,7 +317,7 @@ export default function SarwinHRPayrollApp() {
               </p>
             </div>
 
-            {/* 4 KPI Cards */}
+            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Headcount</p>
@@ -347,7 +335,7 @@ export default function SarwinHRPayrollApp() {
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gross Monthly Run</p>
                 <div className="mt-3">
                   <span className="text-3xl font-black text-slate-900 font-mono">
-                    ₹{(stats?.monthlyGrossPayroll || employees.reduce((s, e) => s + (e.monthlyGross || 0), 0)).toLocaleString("en-IN")}
+                    {INR}{(stats?.monthlyGrossPayroll || employees.reduce((s, e) => s + (e.monthlyGross || 0), 0)).toLocaleString("en-IN")}
                   </span>
                   <p className="mt-1 text-[11px] text-slate-400 font-medium">Monthly CTC Base Value</p>
                 </div>
@@ -357,7 +345,7 @@ export default function SarwinHRPayrollApp() {
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statutory Liability</p>
                 <div className="mt-3">
                   <span className="text-3xl font-black text-slate-900 font-mono">
-                    ₹{(stats?.statutoryLiability || 48000).toLocaleString("en-IN")}
+                    {INR}{(stats?.statutoryLiability || 48000).toLocaleString("en-IN")}
                   </span>
                   <p className="mt-1 text-[11px] text-amber-600 font-semibold">EPF (12%) + ESIC (3.25%)</p>
                 </div>
@@ -367,7 +355,7 @@ export default function SarwinHRPayrollApp() {
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Compliance Status</p>
                 <div className="mt-3 flex items-baseline justify-between">
                   <span className="text-2xl font-black text-emerald-600">100% OK</span>
-                  <span className="text-[11px] text-slate-500">PT & TDS Ready</span>
+                  <span className="text-[11px] text-slate-500 font-medium">PT & TDS Ready</span>
                 </div>
               </div>
             </div>
@@ -393,13 +381,13 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* View 2: Employee Directory */}
+        {/* Employees */}
         {activeTab === "employees" && (
           <div className="p-8 space-y-6 max-w-7xl">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">Employee 360 Directory</h2>
-                <p className="text-xs text-slate-500 font-medium">Manage company personnel, salary structures, PAN/UAN credentials, and disbursement bank accounts.</p>
+                <p className="text-xs text-slate-500 font-medium">Manage personnel, salary structures, PAN/UAN credentials, and disbursement bank accounts.</p>
               </div>
               <button
                 onClick={() => setModalOpen(true)}
@@ -409,7 +397,6 @@ export default function SarwinHRPayrollApp() {
               </button>
             </div>
 
-            {/* Search & Filter */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
               <input
                 type="text"
@@ -431,7 +418,6 @@ export default function SarwinHRPayrollApp() {
               </select>
             </div>
 
-            {/* Table */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
@@ -466,7 +452,7 @@ export default function SarwinHRPayrollApp() {
                         <div className="text-slate-400">{emp.ifsc}</div>
                       </td>
                       <td className="px-6 py-4 text-right font-mono font-bold text-slate-900 text-sm">
-                        ₹{emp.monthlyGross?.toLocaleString("en-IN")}
+                        {INR}{emp.monthlyGross?.toLocaleString("en-IN")}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button
@@ -484,16 +470,10 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* View 3: Attendance & LOP */}
+        {/* Attendance */}
         {activeTab === "attendance" && (
           <div className="p-8 space-y-6 max-w-5xl">
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Attendance & Loss of Pay (LOP)</h2>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Configure unpaid leave (LOP) days to automatically calculate proration factors for August 2026 (31 Calendar Days).
-              </p>
-            </div>
-
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Attendance & Loss of Pay (LOP)</h2>
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-b border-slate-200">
@@ -530,7 +510,6 @@ export default function SarwinHRPayrollApp() {
                 </tbody>
               </table>
             </div>
-
             <button
               onClick={() => { setActiveTab("payroll"); setPayrollStep(1); }}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow"
@@ -540,7 +519,7 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* View 4: Payroll Command Center */}
+        {/* Payroll */}
         {activeTab === "payroll" && (
           <div className="p-8 space-y-6 max-w-7xl">
             {payrollStep < 4 ? (
@@ -560,35 +539,33 @@ export default function SarwinHRPayrollApp() {
             ) : (
               payrollData && (
                 <div className="space-y-6">
-                  {/* Summary Metric Strip */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="bg-white p-4 rounded-xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Gross Payroll</p>
                       <p className="text-xl font-black text-slate-900 mt-1 font-mono">
-                        ₹{payrollData.summary.totalGross.toLocaleString("en-IN")}
+                        {INR}{payrollData.summary.totalGross.toLocaleString("en-IN")}
                       </p>
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Statutory (EPF + ESIC)</p>
                       <p className="text-xl font-black text-indigo-600 mt-1 font-mono">
-                        ₹{(payrollData.summary.totalEpf + payrollData.summary.totalEsic).toLocaleString("en-IN")}
+                        {INR}{(payrollData.summary.totalEpf + payrollData.summary.totalEsic).toLocaleString("en-IN")}
                       </p>
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase">TDS & PT</p>
                       <p className="text-xl font-black text-amber-600 mt-1 font-mono">
-                        ₹{(payrollData.summary.totalTds + payrollData.summary.totalPt).toLocaleString("en-IN")}
+                        {INR}{(payrollData.summary.totalTds + payrollData.summary.totalPt).toLocaleString("en-IN")}
                       </p>
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Net Bank Payout</p>
                       <p className="text-xl font-black text-emerald-600 mt-1 font-mono">
-                        ₹{payrollData.summary.totalNetPayout.toLocaleString("en-IN")}
+                        {INR}{payrollData.summary.totalNetPayout.toLocaleString("en-IN")}
                       </p>
                     </div>
                   </div>
 
-                  {/* Register */}
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-slate-200 flex items-center justify-between">
                       <h4 className="text-xs font-bold text-slate-900 uppercase">August 2026 Finalized Payroll Register</h4>
@@ -618,13 +595,13 @@ export default function SarwinHRPayrollApp() {
                           {payrollData.calculations.map((c) => (
                             <tr key={c.employeeId} className="hover:bg-slate-50">
                               <td className="px-4 py-3 font-bold text-slate-900">{c.name}</td>
-                              <td className="px-4 py-3 text-right font-mono">₹{c.earnings.gross.toLocaleString("en-IN")}</td>
-                              <td className="px-4 py-3 text-right font-mono text-slate-600">₹{c.deductions.epfEmployee}</td>
-                              <td className="px-4 py-3 text-right font-mono text-slate-600">₹{c.deductions.esicEmployee}</td>
-                              <td className="px-4 py-3 text-right font-mono text-slate-600">₹{c.deductions.pt}</td>
-                              <td className="px-4 py-3 text-right font-mono text-slate-600">₹{c.deductions.tds}</td>
+                              <td className="px-4 py-3 text-right font-mono">{INR}{c.earnings.gross.toLocaleString("en-IN")}</td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-600">{INR}{c.deductions.epfEmployee}</td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-600">{INR}{c.deductions.esicEmployee}</td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-600">{INR}{c.deductions.pt}</td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-600">{INR}{c.deductions.tds}</td>
                               <td className="px-4 py-3 text-right font-mono font-black text-emerald-600">
-                                ₹{c.netSalary.toLocaleString("en-IN")}
+                                {INR}{c.netSalary.toLocaleString("en-IN")}
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <button
@@ -646,7 +623,7 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* View 5: Compliance Hub */}
+        {/* Compliance */}
         {activeTab === "compliance" && (
           <div className="p-8 space-y-6 max-w-5xl">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Compliance & Statutory Hub</h2>
@@ -656,7 +633,7 @@ export default function SarwinHRPayrollApp() {
                   <h3 className="font-bold text-slate-900 text-sm">EPF (12%)</h3>
                   <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">Active</span>
                 </div>
-                <p className="text-xs text-slate-600">Employee 12% on Basic (capped at ₹15,000 ceiling). Employer share divided into EPS (8.33%) & EPF (3.67%).</p>
+                <p className="text-xs text-slate-600">Employee 12% on Basic (capped at {INR}15,000 ceiling). Employer share divided into EPS (8.33%) & EPF (3.67%).</p>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3">
@@ -664,13 +641,13 @@ export default function SarwinHRPayrollApp() {
                   <h3 className="font-bold text-slate-900 text-sm">ESIC (0.75% / 3.25%)</h3>
                   <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">Active</span>
                 </div>
-                <p className="text-xs text-slate-600">Applicable on gross wages up to ₹21,000 threshold.</p>
+                <p className="text-xs text-slate-600">Applicable on gross wages up to {INR}21,000 threshold.</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* View 6: Disbursement Reports */}
+        {/* Reports */}
         {activeTab === "reports" && (
           <div className="p-8 space-y-6 max-w-5xl">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Disbursement Reports</h2>
@@ -738,7 +715,7 @@ export default function SarwinHRPayrollApp() {
                 <input
                   type="number"
                   required
-                  placeholder="Monthly Gross (₹)"
+                  placeholder="Monthly Gross"
                   value={newEmp.monthlyGross}
                   onChange={(e) => setNewEmp({ ...newEmp, monthlyGross: e.target.value })}
                   className="w-full px-3 py-2 border rounded-xl font-mono font-bold"
@@ -796,7 +773,7 @@ export default function SarwinHRPayrollApp() {
             <div className="text-xs space-y-2 text-slate-700">
               <p>Department: <strong>{profileModalData.department}</strong></p>
               <p>Designation: {profileModalData.designation}</p>
-              <p>Monthly Gross: <strong className="font-mono">₹{profileModalData.monthlyGross?.toLocaleString("en-IN")}</strong></p>
+              <p>Monthly Gross: <strong className="font-mono">{INR}{profileModalData.monthlyGross?.toLocaleString("en-IN")}</strong></p>
               <p>PAN: {profileModalData.pan} | UAN: {profileModalData.uan}</p>
               <p>Bank A/C: {profileModalData.bankAccount} ({profileModalData.ifsc})</p>
             </div>
@@ -827,26 +804,26 @@ export default function SarwinHRPayrollApp() {
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div className="border p-3 rounded-xl space-y-1">
                 <p className="font-bold text-blue-700 uppercase text-[10px]">Earnings</p>
-                <div className="flex justify-between"><span>Basic:</span><span className="font-mono">₹{payslipModalData.earnings.basic.toLocaleString("en-IN")}</span></div>
-                <div className="flex justify-between"><span>HRA:</span><span className="font-mono">₹{payslipModalData.earnings.hra.toLocaleString("en-IN")}</span></div>
-                <div className="flex justify-between"><span>Special:</span><span className="font-mono">₹{payslipModalData.earnings.special.toLocaleString("en-IN")}</span></div>
-                <div className="flex justify-between font-bold border-t pt-1"><span>Total Gross:</span><span className="font-mono">₹{payslipModalData.earnings.gross.toLocaleString("en-IN")}</span></div>
+                <div className="flex justify-between"><span>Basic:</span><span className="font-mono">{INR}{payslipModalData.earnings.basic.toLocaleString("en-IN")}</span></div>
+                <div className="flex justify-between"><span>HRA:</span><span className="font-mono">{INR}{payslipModalData.earnings.hra.toLocaleString("en-IN")}</span></div>
+                <div className="flex justify-between"><span>Special:</span><span className="font-mono">{INR}{payslipModalData.earnings.special.toLocaleString("en-IN")}</span></div>
+                <div className="flex justify-between font-bold border-t pt-1"><span>Total Gross:</span><span className="font-mono">{INR}{payslipModalData.earnings.gross.toLocaleString("en-IN")}</span></div>
               </div>
 
               <div className="border p-3 rounded-xl space-y-1">
                 <p className="font-bold text-amber-700 uppercase text-[10px]">Deductions</p>
-                <div className="flex justify-between"><span>EPF (12%):</span><span className="font-mono">₹{payslipModalData.deductions.epfEmployee}</span></div>
-                <div className="flex justify-between"><span>ESIC:</span><span className="font-mono">₹{payslipModalData.deductions.esicEmployee}</span></div>
-                <div className="flex justify-between"><span>PT:</span><span className="font-mono">₹{payslipModalData.deductions.pt}</span></div>
-                <div className="flex justify-between"><span>TDS:</span><span className="font-mono">₹{payslipModalData.deductions.tds}</span></div>
-                <div className="flex justify-between font-bold border-t pt-1"><span>Total Ded.:</span><span className="font-mono">₹{payslipModalData.deductions.totalDeductions}</span></div>
+                <div className="flex justify-between"><span>EPF (12%):</span><span className="font-mono">{INR}{payslipModalData.deductions.epfEmployee}</span></div>
+                <div className="flex justify-between"><span>ESIC:</span><span className="font-mono">{INR}{payslipModalData.deductions.esicEmployee}</span></div>
+                <div className="flex justify-between"><span>PT:</span><span className="font-mono">{INR}{payslipModalData.deductions.pt}</span></div>
+                <div className="flex justify-between"><span>TDS:</span><span className="font-mono">{INR}{payslipModalData.deductions.tds}</span></div>
+                <div className="flex justify-between font-bold border-t pt-1"><span>Total Ded.:</span><span className="font-mono">{INR}{payslipModalData.deductions.totalDeductions}</span></div>
               </div>
             </div>
 
             <div className="bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center">
               <div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase">Net Payout</p>
-                <p className="text-xl font-bold font-mono text-emerald-400">₹{payslipModalData.netSalary.toLocaleString("en-IN")}</p>
+                <p className="text-xl font-bold font-mono text-emerald-400">{INR}{payslipModalData.netSalary.toLocaleString("en-IN")}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => window.print()} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold">Print</button>
