@@ -1,12 +1,18 @@
+import './globals.css';
+
 export const metadata = {
-  title: 'Payroll SaaS Platform',
-  description: 'Enterprise Indian Payroll Engine',
+  title: 'SARWIN HRPAYROLL | Enterprise HR & Payroll Platform',
+  description: 'Enterprise-grade statutory payroll, attendance, and compliance platform for Indian businesses.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, padding: 0 }}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#F8FAFC] text-slate-800 antialiased font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #sarwin-printable-payslip, #sarwin-printable-payslip * {
+    visibility: visible;
+  }
+  #sarwin-printable-payslip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    box-shadow: none;
+    border: none;
+  }
+}
