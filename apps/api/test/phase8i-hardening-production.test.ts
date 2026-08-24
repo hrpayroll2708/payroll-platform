@@ -1,4 +1,4 @@
-import { PrismaClient, PerformanceCycleStatus, AppraisalStatus, TicketPriority, TicketStatus, HelpdeskDepartment, AttendanceStatus } from '@prisma/client';
+import { PrismaClient, PerformanceCycleStatus, AppraisalStatus, TicketPriority, TicketStatus, HelpdeskDepartment } from '@prisma/client';
 import { PerformanceService } from '../src/services/performance.service';
 import { HelpdeskService } from '../src/services/helpdesk.service';
 import { BankingService } from '../src/services/banking.service';
@@ -80,11 +80,11 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     await prisma.$disconnect();
   });
 
-  // Category A: Authentication enforcement (Tests 1-3)
+  // Category A: Authentication enforcement
   it('A01: rejects unauthenticated operations without token or user context', async () => {
     await expect(HelpdeskService.listTickets({ companyId: companyAId, isHrAdmin: false })).resolves.toBeDefined();
   });
-  it('A02: rejects expired or malformed session tokens', async () => {
+  it('A02: rejects expired or malformed session tokens', () => {
     const invalidTokenCheck = (token: string | null) => { if (!token) throw new Error('Authentication required'); };
     expect(() => invalidTokenCheck(null)).toThrow('Authentication required');
   });
@@ -92,37 +92,38 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     await expect(HelpdeskService.getTicketDetail({ companyId: companyAId, ticketId: 'non-existent' })).rejects.toThrow();
   });
 
-  // Category B/C/D: RBAC & Permission Enforcement (Tests 4-9)
-  it('B01: verifies required permission codes are checked by service/route boundaries', async () => {
+  // Category B/C/D: RBAC & Permission Enforcement
+  it('B01: verifies required permission codes are checked by service/route boundaries', () => {
     const requiredPermission = 'HELPDESK_CREATE';
     expect(requiredPermission).toBeDefined();
   });
-  it('B02: rejects unauthorized role mutation attempts with 403-equivalent errors', async () => {
+  it('B02: rejects unauthorized role mutation attempts with 403-equivalent errors', () => {
     const checkRole = (role: string) => { if (role !== 'SUPER_ADMIN') throw new Error('Forbidden 403'); };
     expect(() => checkRole('EMPLOYEE')).toThrow('Forbidden 403');
   });
-  it('C01: inspects permission constants for unassigned orphan definitions', async () => {
+  it('C01: inspects permission constants for unassigned orphan definitions', () => {
     const registered = ['HELPDESK_READ', 'HELPDESK_CREATE', 'PERFORMANCE_READ', 'PERFORMANCE_WRITE', 'PERFORMANCE_REVIEW', 'PERFORMANCE_LOCK'];
     expect(registered).toContain('PERFORMANCE_LOCK');
   });
-  it('C02: validates permission constants structure', async () => {
+  it('C02: validates permission constants structure', () => {
     expect(typeof 'HELPDESK_ADMIN').toBe('string');
   });
   it('D01: prevents employee from performing HR/Admin actions', async () => {
-    await expect(HelpdeskService.addComment({ companyId: companyAId, ticketId: 'any', authorUserId: employeeAUserId, body: 'note', isInternal: true, actorEmail: 'worker.a@sarwin.com', actorRole: 'EMPLOYEE', isHrAdmin: false })).rejects.toThrow('Unauthorized: Employees cannot post confidential internal notes');
+    const ticket = await HelpdeskService.createTicket({ companyId: companyAId, employeeId: employeeAId, department: HelpdeskDepartment.HR, category: 'Test', priority: TicketPriority.LOW, subject: 'Test', description: 'Test', actorUserId: employeeAUserId, actorEmail: 'worker.a@sarwin.com', actorRole: 'EMPLOYEE' });
+    await expect(HelpdeskService.addComment({ companyId: companyAId, ticketId: ticket.id, authorUserId: employeeAUserId, body: 'note', isInternal: true, actorEmail: 'worker.a@sarwin.com', actorRole: 'EMPLOYEE', isHrAdmin: false })).rejects.toThrow('Unauthorized: Employees cannot post confidential internal notes');
   });
-  it('D02: prevents read-only roles from executing state mutations', async () => {
+  it('D02: prevents read-only roles from executing state mutations', () => {
     const readOnlyGuard = (role: string) => { if (role === 'VIEWER') throw new Error('Read-only mutation denied'); };
     expect(() => readOnlyGuard('VIEWER')).toThrow('Read-only mutation denied');
   });
 
-  // Category E: Employee Horizontal IDOR (Tests 10-15)
+  // Category E: Employee Horizontal IDOR
   it('E01: prevents employee A from viewing employee B tickets', async () => {
     const ticket = await HelpdeskService.createTicket({ companyId: companyAId, employeeId: employeeBId, department: HelpdeskDepartment.HR, category: 'General', priority: TicketPriority.LOW, subject: 'Emp B Ticket', description: 'Secret', actorUserId: adminUserId, actorEmail: 'admin.real@sarwin.com', actorRole: 'ADMIN' });
     ticketId = ticket.id;
     await expect(HelpdeskService.getTicketDetail({ companyId: companyAId, ticketId: ticket.id, employeeId: employeeAId, isHrAdmin: false })).rejects.toThrow('IDOR Protection');
   });
-  it('E02: prevents employee A from mutating employee B tickets', async () => {
+  it('E02: prevents employee A from mutating employee B tickets', () => {
     const mutateCheck = (ownerId: string, callerId: string) => { if (ownerId !== callerId) throw new Error('IDOR Protection'); };
     expect(() => mutateCheck(employeeBId, employeeAId)).toThrow('IDOR Protection');
   });
@@ -142,9 +143,9 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(Array.isArray(list)).toBe(true);
   });
 
-  // Category F: Manager Hierarchy IDOR (Tests 16-20)
+  // Category F: Manager Hierarchy IDOR
   it('F01: prevents manager from reviewing non-direct report appraisal', async () => {
-    const app = await prisma.appraisal.create({ data: { companyId: companyAId, cycleId, employeeId: employeeBId } }); // empB reports to nobody, not managerId
+    const app = await prisma.appraisal.create({ data: { companyId: companyAId, cycleId, employeeId: employeeBId } });
     await expect(PerformanceService.managerReview({ companyId: companyAId, appraisalId: app.id, managerEmployeeId: managerId, managerRating: 4.0, finalScore: 4.0, actorEmail: 'mgr.real@sarwin.com', actorRole: 'MANAGER', isHrAdmin: false })).rejects.toThrow('Reporting Hierarchy Violation');
   });
   it('F02: prevents managers from reviewing themselves', async () => {
@@ -166,7 +167,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(() => checkHierarchy('mgr-fake', managerId)).toThrow('Hierarchy Violation');
   });
 
-  // Category G: Cross-tenant isolation (Tests 21-25)
+  // Category G: Cross-tenant isolation
   it('G01: prevents Tenant A from reading Tenant B performance cycles', async () => {
     const cycleB = await prisma.performanceCycle.create({ data: { companyId: companyBId, name: 'Tenant B Cycle', startDate: new Date(), endDate: new Date(), createdById: 'admin' } });
     const cycle = await prisma.performanceCycle.findFirst({ where: { id: cycleB.id, companyId: companyAId } });
@@ -188,7 +189,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(emp).toBeNull();
   });
 
-  // Category H: Maker-checker enforcement (Tests 26-30)
+  // Category H: Maker-checker enforcement
   it('H01: prevents reviewing manager from locking their own reviewed appraisal', async () => {
     await expect(PerformanceService.lockAppraisal({ companyId: companyAId, appraisalId, approverUserId: adminUserId, approverEmployeeId: managerId, actorEmail: 'mgr.real@sarwin.com', actorRole: 'MANAGER' })).rejects.toThrow('Maker-Checker Violation');
   });
@@ -209,7 +210,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(audit).toBeDefined();
   });
 
-  // Category I/J/K: Immutability (Tests 31-38)
+  // Category I/J/K: Immutability
   it('I01: guarantees locked payroll record semantics are immutable', async () => {
     const cycle = await prisma.payrollCycle.create({ data: { companyId: companyAId, month: 7, year: 2026, periodStartDate: new Date('2026-07-01'), periodEndDate: new Date('2026-07-31'), paymentDueDate: new Date('2026-08-05'), status: 'LOCKED' } });
     expect(cycle.status).toBe('LOCKED');
@@ -219,7 +220,6 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(mutateLocked('LOCKED')).toEqual({ statusCode: 400, error: 'Locked record is immutable' });
   });
   it('J01: guarantees locked performance cycle is strictly immutable', async () => {
-    await PerformanceService.updateCycleStatus({ companyId: companyAId, cycleId, status: PerformanceCycleStatus.ACTIVE, actorEmail: 'admin.real@sarwin.com', actorRole: 'ADMIN' }).catch(() => {});
     const lockedCycle = await prisma.performanceCycle.update({ where: { id: cycleId }, data: { status: PerformanceCycleStatus.LOCKED } });
     await expect(PerformanceService.updateCycleStatus({ companyId: companyAId, cycleId, status: PerformanceCycleStatus.ACTIVE, actorEmail: 'admin.real@sarwin.com', actorRole: 'ADMIN' })).rejects.toThrow('strictly immutable');
   });
@@ -243,7 +243,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(logRejection('Record is immutable')).toBe(true);
   });
 
-  // Category L-O: Statutory Calculations (Tests 39-44)
+  // Category L-O: Statutory Calculations
   it('L01: verifies TDS calculation is deterministic', () => {
     const calcTds = (taxable: number) => taxable > 500000 ? taxable * 0.1 : 0;
     expect(calcTds(600000)).toBe(60000);
@@ -272,7 +272,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(r1).toEqual(r2);
   });
 
-  // Category P-R: F&F & Expense Idempotency (Tests 45-50)
+  // Category P-R: F&F & Expense Idempotency
   it('P01: verifies F&F settlement never mutates locked historical payroll records', () => {
     const fnf = (locked: boolean) => { if (locked) throw new Error('Protected historical payroll'); };
     expect(() => fnf(true)).toThrow('Protected historical payroll');
@@ -300,7 +300,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(log.action).toBe('EXPENSE_CLAIM_APPROVED');
   });
 
-  // Category S-U: Banking Idempotency & Concurrency (Tests 51-55)
+  // Category S-U: Banking Idempotency & Concurrency
   it('S01: prevents duplicate active disbursement batches for the same payroll cycle', () => {
     const checkBatch = (exists: boolean) => { if (exists) throw new Error('Batch already exists'); };
     expect(() => checkBatch(true)).toThrow('Batch already exists');
@@ -322,7 +322,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(masked).toBe('XXXXXXXX4433');
   });
 
-  // Category V-W: Challan Protection (Tests 56-59)
+  // Category V-W: Challan Protection
   it('V01: rejects challan allocations exceeding total challan deposit amount', () => {
     const allocate = (total: number, allocated: number, req: number) => { if (allocated + req > total) throw new Error('Over-allocation'); };
     expect(() => allocate(50000, 40000, 20000)).toThrow('Over-allocation');
@@ -340,7 +340,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(() => challanTenant(companyAId, companyBId)).toThrow('Cross-tenant violation');
   });
 
-  // Category X-AA: Document Security (Tests 60-64)
+  // Category X-AA: Document Security
   it('X01: blocks unauthorized employee access to foreign employee documents', () => {
     const docAccess = (owner: string, caller: string) => { if (owner !== caller) throw new Error('Access Denied'); };
     expect(() => docAccess('emp-1', 'emp-2')).toThrow('Access Denied');
@@ -362,7 +362,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(sanitizePath('/var/private/storage/secret.pdf')).toBe('REDACTED');
   });
 
-  // Category AB-AE: Input Validation & Lifecycle (Tests 65-69)
+  // Category AB-AE: Input Validation & Lifecycle
   it('AB01: rejects negative monetary input values', () => {
     const validateAmount = (amt: number) => { if (amt < 0) throw new Error('Negative monetary value'); };
     expect(() => validateAmount(-1000)).toThrow('Negative monetary value');
@@ -384,7 +384,7 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(() => parseBody('{invalid-json')).toThrow('Malformed JSON');
   });
 
-  // Category AF-AG: Error Security & Leakage (Tests 70-72)
+  // Category AF-AG: Error Security & Leakage
   it('AF01: ensures stack traces are omitted from API error responses', () => {
     const formatError = (err: any) => ({ statusCode: 500, error: 'Internal Server Error' });
     expect(formatError(new Error('DB failure'))).not.toHaveProperty('stack');
@@ -399,13 +399,13 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(sanitizeUser({ email: 'test@sarwin.com', passwordHash: 'secret_hash' })).not.toHaveProperty('passwordHash');
   });
 
-  // Category AH-AJ: Audit, Transactions & Idempotency (Tests 73-77)
+  // Category AH-AJ: Audit, Transactions & Idempotency
   it('AH01: verifies sensitive state mutations create immutable AuditLog records', async () => {
     const log = await AuditService.log({ companyId: companyAId, actorEmail: 'admin.real@sarwin.com', actorRole: 'SUPER_ADMIN', action: 'SECURITY_HARDENING_VERIFIED', entity: 'System', entityId: 'sys-01' });
     expect(log).toBeDefined();
     expect(log?.action).toBe('SECURITY_HARDENING_VERIFIED');
   });
-  it('AH02: confirms failed unauthorized operations do not create misleading successful audit entries', async () => {
+  it('AH02: confirms failed unauthorized operations do not create misleading successful audit entries', () => {
     const auditFailure = (success: boolean, action: string) => { if (!success) return null; return { action }; };
     expect(auditFailure(false, 'MALICIOUS_MUTATION')).toBeNull();
   });
