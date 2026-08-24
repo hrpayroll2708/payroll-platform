@@ -68,6 +68,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
         email: 'priya.7b@sarwin.com',
         monthlyGross: 20000,
         basicSalary: 10000,
+        uan: '100987654322',
         esicNumber: '31000123450001001',
         location: 'MH',
       },

@@ -21,6 +21,7 @@ export class CompliancePreparationService {
       include: {
         records: {
           include: { employee: true },
+          orderBy: { employee: { employeeCode: 'asc' } },
         },
       },
     });
@@ -147,6 +148,7 @@ export class CompliancePreparationService {
       include: {
         records: {
           include: { employee: true },
+          orderBy: { employee: { employeeCode: 'asc' } },
         },
       },
     });
@@ -244,6 +246,7 @@ export class CompliancePreparationService {
       include: {
         records: {
           include: { employee: true },
+          orderBy: { employee: { employeeCode: 'asc' } },
         },
       },
     });
