@@ -74,6 +74,10 @@ model Company {
   fbpAllocations            FlexibleBenefitAllocation[]
   expenseClaims             EmployeeExpenseClaim[]
 
+  // Phase 8C Additions
+  resignationRequests       ResignationRequest[]
+  fnfSettlements            FnFSettlement[]
+
   @@index([code])
 }
 
@@ -695,8 +699,27 @@ enum AdjustmentType {
   ARREAR
   RECOVERY
   BONUS_PAYOUT
+  REIMBURSEMENT_CLAIM
   STATUTORY_CORRECTION
   OVERTIME_SETTLEMENT
+}
+
+enum SeparationStatus {
+  ACTIVE
+  RESIGNATION_SUBMITTED
+  NOTICE_PERIOD
+  EXIT_CLEARANCE
+  FNF_CALCULATION
+  SETTLED
+  CANCELLED
+}
+
+enum FnfStatus {
+  DRAFT
+  CALCULATED
+  UNDER_REVIEW
+  APPROVED
+  LOCKED
 }
 
 model PayrollCycle {
@@ -1226,7 +1249,7 @@ model ComplianceException {
 model ReimbursementHeadConfig {
   id                  String                      @id @default(uuid())
   companyId           String
-  code                String                      // FUEL, TELEPHONE, BOOKS, MEDICAL, LTA, FOOD_COUPON
+  code                String
   name                String
   description         String?
   monthlyLimit        Float                       @default(0.0)
@@ -1316,7 +1339,95 @@ model ExpenseClaimDocument {
 }
 
 // --------------------------------------------------
-// 10. PRESERVED EMPLOYEE MODEL (Additive Relations)
+// 10. PHASE 8C FULL & FINAL SETTLEMENT & EXIT MANAGEMENT
+// --------------------------------------------------
+model ResignationRequest {
+  id                  String            @id @default(uuid())
+  companyId           String
+  employeeId          String            @unique
+  resignationDate     DateTime          @db.Date
+  proposedLastDay     DateTime          @db.Date
+  actualLastDay       DateTime?         @db.Date
+  noticePeriodDays    Int               @default(30)
+  noticeShortfallDays Int               @default(0)
+  reason              String
+  comments            String?
+  status              SeparationStatus  @default(RESIGNATION_SUBMITTED)
+  reviewedById        String?
+  reviewedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  company             Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee          @relation("EmployeeResignation", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer            Employee?         @relation("ResignationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  clearanceItems      ExitClearanceItem[]
+  settlement          FnFSettlement?
+
+  @@index([companyId, status])
+}
+
+model ExitClearanceItem {
+  id                  String             @id @default(uuid())
+  resignationId       String
+  departmentName      String             // IT, ADMIN, FINANCE, HR
+  itemName            String             // Laptop, Access Card, Travel Advance
+  isCleared           Boolean            @default(false)
+  recoveryAmount      Float              @default(0.0)
+  clearedById         String?
+  clearedAt           DateTime?
+  remarks             String?
+
+  resignation         ResignationRequest @relation(fields: [resignationId], references: [id], onDelete: Cascade)
+
+  @@index([resignationId, departmentName])
+}
+
+model FnFSettlement {
+  id                  String             @id @default(uuid())
+  companyId           String
+  employeeId          String             @unique
+  resignationId       String             @unique
+  financialYear       String
+  
+  workedDaysSalary    Float              @default(0.0)
+  leaveEncashment     Float              @default(0.0)
+  gratuityAmount      Float              @default(0.0)
+  reimbursements      Float              @default(0.0)
+  bonusArrears        Float              @default(0.0)
+  grossSettlement     Float              @default(0.0)
+  
+  noticeShortfallDeduction Float         @default(0.0)
+  assetRecoveryDeduction   Float         @default(0.0)
+  salaryAdvanceRecovery    Float         @default(0.0)
+  epfDeduction             Float         @default(0.0)
+  ptDeduction              Float         @default(0.0)
+  tdsDeduction             Float         @default(0.0)
+  totalDeductions          Float         @default(0.0)
+  
+  netSettlementPayable Float             @default(0.0)
+  status               FnfStatus         @default(DRAFT)
+  calculationSnapshot  Json?
+  
+  calculatedById       String
+  reviewedById         String?
+  reviewedAt           DateTime?
+  approvedById         String?
+  approvedAt           DateTime?
+  lockedAt             DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  company              Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee             Employee          @relation("EmployeeFnFSettlement", fields: [employeeId], references: [id], onDelete: Cascade)
+  resignation          ResignationRequest @relation(fields: [resignationId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+}
+
+// --------------------------------------------------
+// 11. PRESERVED EMPLOYEE MODEL (Additive Relations)
 // --------------------------------------------------
 enum EmploymentStatus {
   DRAFT
@@ -1408,6 +1519,11 @@ model Employee {
   fbpAllocations         FlexibleBenefitAllocation[]
   expenseClaims          EmployeeExpenseClaim[]
   reviewedClaims         EmployeeExpenseClaim[] @relation("ClaimReviewer")
+
+  // Phase 8C Additions
+  resignation            ResignationRequest? @relation("EmployeeResignation")
+  reviewedResignations   ResignationRequest[] @relation("ResignationReviewer")
+  fnfSettlement          FnFSettlement?      @relation("EmployeeFnFSettlement")
 
   @@index([companyId, employmentStatus])
   @@index([employeeCode])
