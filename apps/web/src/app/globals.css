@@ -1,8 +1,7 @@
-﻿@tailwind base;
-@tailwind components;
-@tailwind utilities;
+﻿* {
+  box-sizing: border-box;
+}
 
-* { box-sizing: border-box; }
 body {
   margin: 0;
   padding: 0;
@@ -11,8 +10,12 @@ body {
 }
 
 @media print {
-  body * { visibility: hidden; }
-  #sarwin-printable-payslip, #sarwin-printable-payslip * { visibility: visible; }
+  body * {
+    visibility: hidden;
+  }
+  #sarwin-printable-payslip, #sarwin-printable-payslip * {
+    visibility: visible;
+  }
   #sarwin-printable-payslip {
     position: absolute;
     left: 0;
