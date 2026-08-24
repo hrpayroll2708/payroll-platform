@@ -1,4 +1,4 @@
-﻿datasource db {
+datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -26,7 +26,7 @@ model Company {
   postalCode        String?
   currency          String       @default("INR")
   timezone          String       @default("Asia/Kolkata")
-  financialYearStart Int         @default(4) // April
+  financialYearStart Int         @default(4)
   employeeSequence  Int          @default(0)
   isDefault         Boolean      @default(false)
   createdAt         DateTime     @default(now())
@@ -52,11 +52,11 @@ model Company {
   payrollAdjustments PayrollAdjustment[]
 
   // Phase 7A Additions
-  statutoryConfigurations  StatutoryConfiguration[]
-  compliancePeriods        CompliancePeriod[]
+  statutoryConfigurations   StatutoryConfiguration[]
+  compliancePeriods         CompliancePeriod[]
   employeeStatutoryProfiles EmployeeStatutoryProfile[]
-  complianceDocuments      ComplianceDocument[]
-  complianceExceptions     ComplianceException[]
+  complianceDocuments       ComplianceDocument[]
+  complianceExceptions      ComplianceException[]
 
   @@index([code])
 }
@@ -728,7 +728,7 @@ model PayrollRecord {
   uanMasked           String?
   
   calculationSnapshot Json?
-  statutoryConfigSnapshot Json?          // Phase 7A Additive Field for Historical Statutory Snapshot
+  statutoryConfigSnapshot Json?
   createdAt           DateTime           @default(now())
 
   payrollCycle        PayrollCycle       @relation(fields: [payrollCycleId], references: [id], onDelete: Cascade)
@@ -848,13 +848,13 @@ model StatutoryConfiguration {
   id                  String                @id @default(uuid())
   companyId           String
   configType          StatutoryConfigType
-  jurisdictionState   String?               // Optional State code e.g. "KA", "MH", "TN", or null for national
-  financialYear       String                // e.g. "2026-2027"
+  jurisdictionState   String?
+  financialYear       String
   version             Int                   @default(1)
   status              StatutoryConfigStatus @default(DRAFT)
   effectiveFrom       DateTime              @db.Date
   effectiveTo         DateTime?             @db.Date
-  rulesJson           Json                  // Structured JSON for statutory parameters/slabs
+  rulesJson           Json
   description         String?
   createdById         String
   approvedById        String?
@@ -872,9 +872,9 @@ model StatutoryConfiguration {
 model CompliancePeriod {
   id                  String                 @id @default(uuid())
   companyId           String
-  financialYear       String                 // "2026-2027"
-  month               Int                    // 1 - 12
-  quarter             String                 // "Q1", "Q2", "Q3", "Q4"
+  financialYear       String
+  month               Int
+  quarter             String
   startDate           DateTime               @db.Date
   endDate             DateTime               @db.Date
   status              CompliancePeriodStatus @default(OPEN)
@@ -894,12 +894,12 @@ model EmployeeStatutoryProfile {
   id                  String             @id @default(uuid())
   companyId           String
   employeeId          String
-  financialYear       String             // "2026-2027"
+  financialYear       String
   taxRegime           TaxRegime          @default(NEW_REGIME_115BAC)
   isEpfApplicable     Boolean            @default(true)
   isEsicApplicable    Boolean            @default(true)
-  ptStateCode         String?            // e.g. "TN", "KA", "MH"
-  panStatus           String             @default("VALID") // VALID, INVALID, NOT_PROVIDED
+  ptStateCode         String?
+  panStatus           String             @default("VALID")
   effectiveFrom       DateTime           @db.Date
   effectiveTo         DateTime?          @db.Date
   source              String             @default("SYSTEM_DEFAULT")
@@ -920,7 +920,7 @@ model ComplianceDocument {
   companyId           String
   statutoryPeriodId   String?
   payrollCycleId      String?
-  documentType        String             // "EPF_ECR", "ESIC_RETURN", "PT_RETURN", "FORM_24Q", "CHALLAN_RECEIPT"
+  documentType        String
   fileName            String
   filePayloadPath     String?
   fileChecksumSha256  String?

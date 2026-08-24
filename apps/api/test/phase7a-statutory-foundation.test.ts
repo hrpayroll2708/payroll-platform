@@ -1,4 +1,4 @@
-﻿import { PrismaClient, StatutoryConfigType, StatutoryConfigStatus, TaxRegime, ComplianceExceptionSeverity } from '@prisma/client';
+import { PrismaClient, StatutoryConfigType, StatutoryConfigStatus, TaxRegime, ComplianceExceptionSeverity } from '@prisma/client';
 import { StatutoryConfigService } from '../src/services/statutory-config.service';
 import { CompliancePeriodService } from '../src/services/compliance-period.service';
 import { ComplianceExceptionService } from '../src/services/compliance-exception.service';
@@ -13,7 +13,6 @@ describe('Phase 7A: Statutory Compliance Foundation Suite', () => {
   let employeeAId: string;
 
   beforeAll(async () => {
-    // Setup clean test tenants
     const compA = await prisma.company.upsert({
       where: { code: 'TEST-STAT-A' },
       update: {},
@@ -28,7 +27,6 @@ describe('Phase 7A: Statutory Compliance Foundation Suite', () => {
     });
     companyBId = compB.id;
 
-    // Create users for maker-checker testing
     const u1 = await prisma.user.upsert({
       where: { email: 'stat_maker@alpha.com' },
       update: {},
@@ -43,7 +41,6 @@ describe('Phase 7A: Statutory Compliance Foundation Suite', () => {
     });
     user2Id = u2.id;
 
-    // Create test employee
     const emp = await prisma.employee.upsert({
       where: { employeeCode: 'EMP-STAT-001' },
       update: {},
@@ -302,7 +299,7 @@ describe('Phase 7A: Statutory Compliance Foundation Suite', () => {
       StatutoryConfigService.activateConfig({
         id: selfDraft.id,
         companyId: companyAId,
-        approvedById: user1Id, // Same as creator
+        approvedById: user1Id,
         actorEmail: 'stat_maker@alpha.com',
         actorRole: 'PAYROLL_ADMIN',
       })
