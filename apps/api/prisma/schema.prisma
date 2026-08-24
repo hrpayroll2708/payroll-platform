@@ -15,6 +15,8 @@ model Company {
   code              String       @unique
   name              String
   legalName         String?
+  tanNumber         String?
+  panNumber         String?
   logoUrl           String?
   website           String?
   email             String?
@@ -51,7 +53,7 @@ model Company {
   payrollCycles     PayrollCycle[]
   payrollAdjustments PayrollAdjustment[]
 
-  // Phase 7A & 7C Additions
+  // Phase 7 Additions
   statutoryConfigurations   StatutoryConfiguration[]
   compliancePeriods         CompliancePeriod[]
   employeeStatutoryProfiles EmployeeStatutoryProfile[]
@@ -60,6 +62,8 @@ model Company {
   taxDeclarations           EmployeeTaxDeclaration[]
   investmentProofs          InvestmentProofDocument[]
   previousEmployerIncomes   PreviousEmployerIncome[]
+  statutoryChallans         StatutoryChallan[]
+  challanAllocations        ChallanAllocation[]
 
   @@index([code])
 }
@@ -677,9 +681,10 @@ model PayrollCycle {
   adjustments         PayrollAdjustment[]
   exports             PayrollExport[]
 
-  // Phase 7A Additions
+  // Phase 7 Additions
   complianceDocuments ComplianceDocument[]
   complianceExceptions ComplianceException[]
+  challanAllocations  ChallanAllocation[]
 
   @@unique([companyId, month, year])
   @@index([companyId, status])
@@ -802,7 +807,7 @@ model PayrollExport {
 }
 
 // --------------------------------------------------
-// 8. PHASE 7A & 7C STATUTORY & TAX ARCHITECTURE
+// 8. STATUTORY COMPLIANCE & CHALLAN OPERATIONS
 // --------------------------------------------------
 enum StatutoryConfigType {
   EPF
@@ -861,6 +866,21 @@ enum TaxSectionCategory {
   OTHER_EXEMPTIONS
 }
 
+enum ChallanType {
+  TDS_281
+  EPF_CHALLAN
+  ESIC_CHALLAN
+  PT_CHALLAN
+}
+
+enum ChallanStatus {
+  DRAFT
+  RECORDED
+  VALIDATED
+  RECONCILED
+  CANCELLED
+}
+
 enum ComplianceExceptionSeverity {
   BLOCKING
   WARNING
@@ -915,6 +935,7 @@ model CompliancePeriod {
   company             Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   documents           ComplianceDocument[]
   exceptions          ComplianceException[]
+  challanAllocations  ChallanAllocation[]
 
   @@unique([companyId, financialYear, month])
   @@index([companyId, status])
@@ -1021,6 +1042,59 @@ model PreviousEmployerIncome {
 
   @@unique([employeeId, financialYear])
   @@index([companyId, financialYear])
+}
+
+model StatutoryChallan {
+  id                  String             @id @default(uuid())
+  companyId           String
+  challanType         ChallanType        @default(TDS_281)
+  financialYear       String
+  quarter             String?
+  month               Int?
+  bsrCode             String             // 7-digit bank branch BSR code
+  challanNumber       String             // 5-digit bank serial number
+  depositDate         DateTime           @db.Date
+  taxAmount           Float              @default(0.0)
+  surcharge           Float              @default(0.0)
+  cess                Float              @default(0.0)
+  interest            Float              @default(0.0)
+  feeSection234E      Float              @default(0.0)
+  penaltyOther        Float              @default(0.0)
+  totalAmount         Float              @default(0.0)
+  allocatedAmount     Float              @default(0.0)
+  unallocatedAmount   Float              @default(0.0)
+  status              ChallanStatus      @default(RECORDED)
+  chequeNumber        String?
+  bankName            String?
+  remarks             String?
+  createdById         String
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  allocations         ChallanAllocation[]
+
+  @@index([companyId, challanType, financialYear])
+  @@index([companyId, status])
+}
+
+model ChallanAllocation {
+  id                  String             @id @default(uuid())
+  companyId           String
+  challanId           String
+  payrollCycleId      String?
+  compliancePeriodId  String?
+  allocatedAmount     Float
+  allocatedById       String
+  createdAt           DateTime           @default(now())
+
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  challan             StatutoryChallan   @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  payrollCycle        PayrollCycle?      @relation(fields: [payrollCycleId], references: [id], onDelete: SetNull)
+  compliancePeriod    CompliancePeriod?  @relation(fields: [compliancePeriodId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, challanId])
+  @@index([payrollCycleId])
 }
 
 model ComplianceDocument {
@@ -1153,7 +1227,7 @@ model Employee {
   payrollExceptions PayrollException[]
   payrollAdjustments PayrollAdjustment[]
 
-  // Phase 7A & 7C Additions
+  // Phase 7 Additions
   statutoryProfiles EmployeeStatutoryProfile[]
   complianceExceptions ComplianceException[]
   taxDeclarations   EmployeeTaxDeclaration[]
