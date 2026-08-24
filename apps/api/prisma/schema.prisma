@@ -69,6 +69,11 @@ model Company {
   attendanceRegularizations AttendanceRegularizationRequest[]
   employeeNotifications     EmployeeNotification[]
 
+  // Phase 8B Additions
+  reimbursementHeads        ReimbursementHeadConfig[]
+  fbpAllocations            FlexibleBenefitAllocation[]
+  expenseClaims             EmployeeExpenseClaim[]
+
   @@index([code])
 }
 
@@ -478,7 +483,7 @@ model EmployeeNotification {
   employeeId          String
   title               String
   message             String
-  type                String               @default("SYSTEM") // LEAVE, ATTENDANCE, TAX, PAYSLIP, SYSTEM
+  type                String               @default("SYSTEM")
   isRead              Boolean              @default(false)
   linkUrl             String?
   createdAt           DateTime             @default(now())
@@ -734,10 +739,11 @@ model PayrollCycle {
   adjustments         PayrollAdjustment[]
   exports             PayrollExport[]
 
-  // Phase 7 Additions
+  // Phase 7 & 8 Additions
   complianceDocuments ComplianceDocument[]
   complianceExceptions ComplianceException[]
   challanAllocations  ChallanAllocation[]
+  expenseClaims       EmployeeExpenseClaim[]
 
   @@unique([companyId, month, year])
   @@index([companyId, status])
@@ -932,6 +938,17 @@ enum ChallanStatus {
   VALIDATED
   RECONCILED
   CANCELLED
+}
+
+enum ExpenseClaimStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  CANCELLED
+  PAID
 }
 
 enum ComplianceExceptionSeverity {
@@ -1204,7 +1221,102 @@ model ComplianceException {
 }
 
 // --------------------------------------------------
-// 9. PRESERVED EMPLOYEE MODEL (Additive Relations)
+// 9. PHASE 8B FLEXIBLE BENEFITS & EXPENSE CLAIMS
+// --------------------------------------------------
+model ReimbursementHeadConfig {
+  id                  String                      @id @default(uuid())
+  companyId           String
+  code                String                      // FUEL, TELEPHONE, BOOKS, MEDICAL, LTA, FOOD_COUPON
+  name                String
+  description         String?
+  monthlyLimit        Float                       @default(0.0)
+  annualLimit         Float                       @default(0.0)
+  isTaxExempt         Boolean                     @default(true)
+  proofRequired       Boolean                     @default(true)
+  isActive            Boolean                     @default(true)
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  company             Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  allocations         FlexibleBenefitAllocation[]
+  claims              EmployeeExpenseClaim[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+model FlexibleBenefitAllocation {
+  id                  String                  @id @default(uuid())
+  companyId           String
+  employeeId          String
+  financialYear       String
+  headId              String
+  annualEntitlement   Float                   @default(0.0)
+  monthlyEntitlement  Float                   @default(0.0)
+  allocatedAmount     Float                   @default(0.0)
+  claimedAmount       Float                   @default(0.0)
+  approvedAmount      Float                   @default(0.0)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  company             Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee                @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  head                ReimbursementHeadConfig @relation(fields: [headId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, headId, financialYear])
+  @@index([companyId, financialYear])
+}
+
+model EmployeeExpenseClaim {
+  id                  String                  @id @default(uuid())
+  companyId           String
+  employeeId          String
+  claimNumber         String                  @unique
+  financialYear       String
+  headId              String
+  claimDate           DateTime                @db.Date
+  amountClaimed       Float
+  amountApproved      Float                   @default(0.0)
+  amountRejected      Float                   @default(0.0)
+  isTaxExempt         Boolean                 @default(true)
+  description         String
+  status              ExpenseClaimStatus      @default(DRAFT)
+  reviewerId          String?
+  reviewedAt          DateTime?
+  reviewComments      String?
+  payrollCycleId      String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  company             Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee                @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer            Employee?               @relation("ClaimReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  head                ReimbursementHeadConfig @relation(fields: [headId], references: [id], onDelete: Cascade)
+  payrollCycle        PayrollCycle?           @relation(fields: [payrollCycleId], references: [id], onDelete: SetNull)
+  documents           ExpenseClaimDocument[]
+
+  @@index([companyId, employeeId, financialYear])
+  @@index([employeeId, status])
+  @@index([companyId, status])
+}
+
+model ExpenseClaimDocument {
+  id                  String                  @id @default(uuid())
+  claimId             String
+  fileName            String
+  fileUrl             String
+  fileSize            Int                     @default(0)
+  mimeType            String                  @default("application/pdf")
+  fileChecksumSha256  String?
+  uploadedAt          DateTime                @default(now())
+
+  claim               EmployeeExpenseClaim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+}
+
+// --------------------------------------------------
+// 10. PRESERVED EMPLOYEE MODEL (Additive Relations)
 // --------------------------------------------------
 enum EmploymentStatus {
   DRAFT
@@ -1291,6 +1403,11 @@ model Employee {
   regularizationRequests AttendanceRegularizationRequest[] @relation("EmployeeRegularizations")
   approvedRegularizations AttendanceRegularizationRequest[] @relation("RegularizationApprover")
   notifications          EmployeeNotification[]
+
+  // Phase 8B Additions
+  fbpAllocations         FlexibleBenefitAllocation[]
+  expenseClaims          EmployeeExpenseClaim[]
+  reviewedClaims         EmployeeExpenseClaim[] @relation("ClaimReviewer")
 
   @@index([companyId, employmentStatus])
   @@index([employeeCode])

@@ -1,13 +1,9 @@
 import { PrismaClient, LeaveRequestStatus, RegularizationStatus } from '@prisma/client';
 import { AuditService } from './audit.service';
-import { TdsCalculatorService } from './tds-calculator.service';
 
 const prisma = new PrismaClient();
 
 export class EssPortalService {
-  /**
-   * Masks sensitive identifier strings safely
-   */
   public static maskIdentifier(val: string | null | undefined, keepStart = 2, keepEnd = 2): string {
     if (!val) return 'NOT_CONFIGURED';
     const str = val.trim();
@@ -15,9 +11,6 @@ export class EssPortalService {
     return str.substring(0, keepStart) + '****' + str.substring(str.length - keepEnd);
   }
 
-  /**
-   * Retrieves personal ESS Dashboard summary
-   */
   public static async getDashboard(params: { companyId: string; employeeId: string; financialYear?: string }) {
     const fy = params.financialYear || '2026-2027';
 
@@ -73,9 +66,6 @@ export class EssPortalService {
     };
   }
 
-  /**
-   * Retrieves strictly own profile with masked sensitive data
-   */
   public static async getProfile(params: { companyId: string; employeeId: string }) {
     const emp = await prisma.employee.findFirst({
       where: { id: params.employeeId, companyId: params.companyId },
@@ -104,9 +94,6 @@ export class EssPortalService {
     };
   }
 
-  /**
-   * Retrieves payslip archive for authenticated employee
-   */
   public static async getPayslips(params: { companyId: string; employeeId: string }) {
     return prisma.payrollRecord.findMany({
       where: {
@@ -143,14 +130,11 @@ export class EssPortalService {
     });
   }
 
-  /**
-   * Retrieves individual payslip detail with strict IDOR ownership check
-   */
   public static async getPayslipDetail(params: { companyId: string; employeeId: string; recordId: string }) {
     const record = await prisma.payrollRecord.findFirst({
       where: {
         id: params.recordId,
-        employeeId: params.employeeId, // Strict ownership filter
+        employeeId: params.employeeId,
         payrollCycle: { companyId: params.companyId, status: 'LOCKED' },
       },
       include: {
@@ -172,8 +156,85 @@ export class EssPortalService {
   }
 
   /**
-   * Submits Attendance Regularization request
+   * Phase 8A Document Center: Retrieves authorized documents strictly belonging to the employee
    */
+  public static async getDocuments(params: { companyId: string; employeeId: string }) {
+    const emp = await prisma.employee.findFirst({
+      where: { id: params.employeeId, companyId: params.companyId },
+    });
+    if (!emp) throw new Error('Employee profile not found');
+
+    const docs = await prisma.employeeDocument.findMany({
+      where: { employeeId: params.employeeId },
+      select: {
+        id: true,
+        title: true,
+        documentType: true,
+        fileName: true,
+        fileSize: true,
+        mimeType: true,
+        uploadedBy: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return docs.map((d) => ({
+      id: d.id,
+      title: d.title,
+      category: d.documentType,
+      fileName: d.fileName,
+      fileSize: d.fileSize,
+      mimeType: d.mimeType,
+      uploadedDate: d.createdAt,
+      isAuthorized: true,
+    }));
+  }
+
+  /**
+   * Phase 8A Document Center: Retrieves document detail with strict ownership verification and audit logging
+   */
+  public static async getDocumentDetail(params: {
+    companyId: string;
+    employeeId: string;
+    documentId: string;
+    actorUserId?: string;
+    actorEmail: string;
+    actorRole: string;
+  }) {
+    const doc = await prisma.employeeDocument.findFirst({
+      where: {
+        id: params.documentId,
+        employeeId: params.employeeId,
+        employee: { companyId: params.companyId },
+      },
+    });
+
+    if (!doc) throw new Error('Document not found or access denied');
+
+    await AuditService.log({
+      companyId: params.companyId,
+      userId: params.actorUserId,
+      actorEmail: params.actorEmail,
+      actorRole: params.actorRole,
+      action: 'EMPLOYEE_DOCUMENT_DOWNLOADED',
+      entity: 'EmployeeDocument',
+      entityId: doc.id,
+      afterState: { fileName: doc.fileName, documentType: doc.documentType },
+    });
+
+    return {
+      id: doc.id,
+      title: doc.title,
+      category: doc.documentType,
+      fileName: doc.fileName,
+      fileSize: doc.fileSize,
+      mimeType: doc.mimeType,
+      uploadedDate: doc.createdAt,
+      downloadUrl: `/api/v1/ess/documents/${doc.id}/download`,
+    };
+  }
+
   public static async submitAttendanceRegularization(params: {
     companyId: string;
     employeeId: string;

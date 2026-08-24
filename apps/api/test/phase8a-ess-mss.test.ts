@@ -4,7 +4,7 @@ import { MssPortalService } from '../src/services/mss-portal.service';
 
 const prisma = new PrismaClient();
 
-describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', () => {
+describe('Phase 8A: Employee & Manager Self-Service Test Suite (40 Scenarios)', () => {
   let companyId: string;
   let tenantBId: string;
   let managerId: string;
@@ -17,10 +17,12 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
   let leaveTypeId: string;
   let leaveRequestId: string;
   let regularizationId: string;
+  let documentId: string;
 
   beforeAll(async () => {
     // 1. Fixture cleanup for idempotence
     const testCodes = ['TEST-8A-CORP-A', 'TEST-8A-CORP-B'];
+    await prisma.employeeDocument.deleteMany({ where: { employee: { company: { code: { in: testCodes } } } } });
     await prisma.attendanceRegularizationRequest.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.employeeNotification.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.leaveRequest.deleteMany({ where: { employee: { company: { code: { in: testCodes } } } } });
@@ -180,6 +182,20 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
       },
     });
     payslipRecordId = rec.id;
+
+    // 6. Setup Employee Document
+    const doc = await prisma.employeeDocument.create({
+      data: {
+        employeeId: sub.id,
+        documentType: 'EMPLOYMENT',
+        title: 'Employment Agreement',
+        fileName: 'Employment_Agreement_Signed.pdf',
+        fileUrl: '/storage/docs/emp-01.pdf',
+        fileSize: 2048,
+        uploadedBy: managerId,
+      },
+    });
+    documentId = doc.id;
   });
 
   afterAll(async () => {
@@ -266,7 +282,94 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     ).rejects.toThrow('Employee profile not found');
   });
 
-  // SECTION 2: LEAVE & ATTENDANCE WORKFLOW (8 TESTS)
+  // SECTION 2: DOCUMENT CENTER (8 TESTS)
+  it('[DOC 01] Lists authorized documents belonging strictly to employee', async () => {
+    const docs = await EssPortalService.getDocuments({ companyId, employeeId: subordinateId });
+    expect(docs.length).toBe(1);
+    expect(docs[0].title).toBe('Employment Agreement');
+  });
+
+  it('[DOC 02] IDOR Defense: Employee cannot list another employee documents', async () => {
+    const docs = await EssPortalService.getDocuments({ companyId, employeeId: managerId });
+    expect(docs.length).toBe(0);
+  });
+
+  it('[DOC 03] Retrieves document detail and stamps download audit event', async () => {
+    const detail = await EssPortalService.getDocumentDetail({
+      companyId,
+      employeeId: subordinateId,
+      documentId,
+      actorUserId: subordinateUserId,
+      actorEmail: 'rohan.sub@sarwin.com',
+      actorRole: 'EMPLOYEE',
+    });
+
+    expect(detail.fileName).toBe('Employment_Agreement_Signed.pdf');
+
+    const logs = await prisma.auditLog.findMany({
+      where: { companyId, action: 'EMPLOYEE_DOCUMENT_DOWNLOADED' },
+    });
+    expect(logs.length).toBeGreaterThan(0);
+  });
+
+  it('[DOC 04] IDOR Defense: Employee A cannot download Employee B document', async () => {
+    await expect(
+      EssPortalService.getDocumentDetail({
+        companyId,
+        employeeId: managerId, // Vikram attempting to download Rohan's document
+        documentId,
+        actorUserId: managerUserId,
+        actorEmail: 'vikram@sarwin.com',
+        actorRole: 'EMPLOYEE',
+      })
+    ).rejects.toThrow('Document not found or access denied');
+  });
+
+  it('[DOC 05] Cross-tenant document download is strictly rejected', async () => {
+    await expect(
+      EssPortalService.getDocumentDetail({
+        companyId: tenantBId,
+        employeeId: subordinateId,
+        documentId,
+        actorUserId: subordinateUserId,
+        actorEmail: 'rohan.sub@sarwin.com',
+        actorRole: 'EMPLOYEE',
+      })
+    ).rejects.toThrow('Document not found or access denied');
+  });
+
+  it('[DOC 06] Non-existent document returns controlled 404/rejection', async () => {
+    await expect(
+      EssPortalService.getDocumentDetail({
+        companyId,
+        employeeId: subordinateId,
+        documentId: 'non-existent-doc-id',
+        actorUserId: subordinateUserId,
+        actorEmail: 'rohan.sub@sarwin.com',
+        actorRole: 'EMPLOYEE',
+      })
+    ).rejects.toThrow('Document not found');
+  });
+
+  it('[DOC 07] Sensitive storage paths are not exposed in public output', async () => {
+    const detail = await EssPortalService.getDocumentDetail({
+      companyId,
+      employeeId: subordinateId,
+      documentId,
+      actorUserId: subordinateUserId,
+      actorEmail: 'rohan.sub@sarwin.com',
+      actorRole: 'EMPLOYEE',
+    });
+    expect((detail as any).fileUrl).toBeUndefined();
+    expect(detail.downloadUrl).toContain('/api/v1/ess/documents/');
+  });
+
+  it('[DOC 08] Empty documents query returns empty array gracefully', async () => {
+    const docs = await EssPortalService.getDocuments({ companyId, employeeId: unrelatedEmpId });
+    expect(docs).toEqual([]);
+  });
+
+  // SECTION 3: LEAVE & ATTENDANCE WORKFLOW (8 TESTS)
   it('[WORKFLOW 01] Submits Attendance Regularization request in SUBMITTED state', async () => {
     const reg = await EssPortalService.submitAttendanceRegularization({
       companyId,
@@ -328,7 +431,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     expect(updated.status).toBe(LeaveRequestStatus.CANCELLED);
   });
 
-  // SECTION 3: MSS DASHBOARD & APPROVALS (8 TESTS)
+  // SECTION 4: MSS DASHBOARD & APPROVALS (8 TESTS)
   it('[MSS 01] Manager Dashboard retrieves only direct subordinates', async () => {
     const mss = await MssPortalService.getManagerDashboard({
       companyId,
@@ -460,7 +563,7 @@ describe('Phase 8A: Employee & Manager Self-Service Test Suite (32 Scenarios)', 
     expect(att!.status).toBe('PRESENT');
   });
 
-  // SECTION 4: SECURITY & FINANCIAL SAFETY (8 TESTS)
+  // SECTION 5: SECURITY & AUDIT (8 TESTS)
   it('[SEC 01] Locked payroll records remain strictly immutable during ESS queries', async () => {
     const before = await prisma.payrollRecord.findUnique({ where: { id: payslipRecordId } });
     await EssPortalService.getPayslipDetail({ companyId, employeeId: subordinateId, recordId: payslipRecordId });

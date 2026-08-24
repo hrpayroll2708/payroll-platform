@@ -1,10 +1,10 @@
 import { Router, Response } from 'express';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth.middleware';
+import { requireAuth, requirePermission, AuthenticatedRequest } from '../middleware/auth.middleware';
 import { EssPortalService } from '../services/ess-portal.service';
 
 const router = Router();
 
-router.get('/dashboard', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/dashboard', requireAuth, requirePermission('ESS_ACCESS'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const employeeId = req.user!.employeeId;
     if (!employeeId) return res.status(403).json({ error: 'No employee record linked to user session' });
@@ -20,7 +20,7 @@ router.get('/dashboard', requireAuth, async (req: AuthenticatedRequest, res: Res
   }
 });
 
-router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile', requireAuth, requirePermission('ESS_PROFILE_READ'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const employeeId = req.user!.employeeId;
     if (!employeeId) return res.status(403).json({ error: 'No employee record linked to session' });
@@ -35,7 +35,7 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
   }
 });
 
-router.get('/payslips', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/payslips', requireAuth, requirePermission('ESS_PAYSLIP_READ'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const employeeId = req.user!.employeeId;
     if (!employeeId) return res.status(403).json({ error: 'No employee record linked to session' });
@@ -50,7 +50,7 @@ router.get('/payslips', requireAuth, async (req: AuthenticatedRequest, res: Resp
   }
 });
 
-router.get('/payslips/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/payslips/:id', requireAuth, requirePermission('ESS_PAYSLIP_READ'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const employeeId = req.user!.employeeId;
     if (!employeeId) return res.status(403).json({ error: 'No employee record linked to session' });
@@ -66,7 +66,41 @@ router.get('/payslips/:id', requireAuth, async (req: AuthenticatedRequest, res: 
   }
 });
 
-router.post('/attendance/regularize', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/documents', requireAuth, requirePermission('ESS_DOCUMENT_READ'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const employeeId = req.user!.employeeId;
+    if (!employeeId) return res.status(403).json({ error: 'No employee record linked to session' });
+
+    const docs = await EssPortalService.getDocuments({
+      companyId: req.user!.companyId,
+      employeeId,
+    });
+    res.json(docs);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to load documents' });
+  }
+});
+
+router.get('/documents/:id', requireAuth, requirePermission('ESS_DOCUMENT_READ'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const employeeId = req.user!.employeeId;
+    if (!employeeId) return res.status(403).json({ error: 'No employee record linked to session' });
+
+    const doc = await EssPortalService.getDocumentDetail({
+      companyId: req.user!.companyId,
+      employeeId,
+      documentId: req.params.id,
+      actorUserId: req.user!.id,
+      actorEmail: req.user!.email,
+      actorRole: req.user!.roles[0] || 'EMPLOYEE',
+    });
+    res.json(doc);
+  } catch (err: any) {
+    res.status(404).json({ error: err.message || 'Document not found' });
+  }
+});
+
+router.post('/attendance/regularize', requireAuth, requirePermission('ESS_ATTENDANCE_REGULARIZE'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const employeeId = req.user!.employeeId;
     if (!employeeId) return res.status(403).json({ error: 'No employee record linked to session' });
