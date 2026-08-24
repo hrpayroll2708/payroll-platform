@@ -13,38 +13,42 @@ describe('Phase 7A: Statutory Compliance Foundation Suite', () => {
   let employeeAId: string;
 
   beforeAll(async () => {
-    const compA = await prisma.company.upsert({
-      where: { code: 'TEST-STAT-A' },
-      update: {},
-      create: { code: 'TEST-STAT-A', name: 'Statutory Alpha Corp' },
+    // 1. Clean up existing test tenant data to guarantee idempotent test runs
+    const testCompanyCodes = ['TEST-STAT-A', 'TEST-STAT-B'];
+    await prisma.complianceException.deleteMany({ where: { company: { code: { in: testCompanyCodes } } } });
+    await prisma.complianceDocument.deleteMany({ where: { company: { code: { in: testCompanyCodes } } } });
+    await prisma.compliancePeriod.deleteMany({ where: { company: { code: { in: testCompanyCodes } } } });
+    await prisma.employeeStatutoryProfile.deleteMany({ where: { company: { code: { in: testCompanyCodes } } } });
+    await prisma.statutoryConfiguration.deleteMany({ where: { company: { code: { in: testCompanyCodes } } } });
+    await prisma.auditLog.deleteMany({ where: { company: { code: { in: testCompanyCodes } } } });
+    await prisma.userRole.deleteMany({ where: { user: { company: { code: { in: testCompanyCodes } } } } });
+    await prisma.user.deleteMany({ where: { company: { code: { in: testCompanyCodes } } } });
+    await prisma.employee.deleteMany({ where: { company: { code: { in: testCompanyCodes } } } });
+    await prisma.company.deleteMany({ where: { code: { in: testCompanyCodes } } });
+
+    // 2. Create fresh isolated test fixtures
+    const compA = await prisma.company.create({
+      data: { code: 'TEST-STAT-A', name: 'Statutory Alpha Corp' },
     });
     companyAId = compA.id;
 
-    const compB = await prisma.company.upsert({
-      where: { code: 'TEST-STAT-B' },
-      update: {},
-      create: { code: 'TEST-STAT-B', name: 'Statutory Beta Corp' },
+    const compB = await prisma.company.create({
+      data: { code: 'TEST-STAT-B', name: 'Statutory Beta Corp' },
     });
     companyBId = compB.id;
 
-    const u1 = await prisma.user.upsert({
-      where: { email: 'stat_maker@alpha.com' },
-      update: {},
-      create: { companyId: companyAId, email: 'stat_maker@alpha.com', passwordHash: 'hash', isActive: true },
+    const u1 = await prisma.user.create({
+      data: { companyId: companyAId, email: 'stat_maker@alpha.com', passwordHash: 'hash', isActive: true },
     });
     user1Id = u1.id;
 
-    const u2 = await prisma.user.upsert({
-      where: { email: 'stat_checker@alpha.com' },
-      update: {},
-      create: { companyId: companyAId, email: 'stat_checker@alpha.com', passwordHash: 'hash', isActive: true },
+    const u2 = await prisma.user.create({
+      data: { companyId: companyAId, email: 'stat_checker@alpha.com', passwordHash: 'hash', isActive: true },
     });
     user2Id = u2.id;
 
-    const emp = await prisma.employee.upsert({
-      where: { employeeCode: 'EMP-STAT-001' },
-      update: {},
-      create: {
+    const emp = await prisma.employee.create({
+      data: {
         companyId: companyAId,
         employeeCode: 'EMP-STAT-001',
         name: 'Venkatesh Iyer',
@@ -53,6 +57,10 @@ describe('Phase 7A: Statutory Compliance Foundation Suite', () => {
       },
     });
     employeeAId = emp.id;
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
   });
 
   it('[TEST 01] Multi-tenant isolation: Configurations for Company A are invisible to Company B', async () => {
@@ -234,7 +242,7 @@ describe('Phase 7A: Statutory Compliance Foundation Suite', () => {
     const inProgress = await CompliancePeriodService.transitionStatus({
       id: period.id,
       companyId: companyAId,
-      targetStatus: 'IN_PROGRESS',
+      targetStatus: 'IN_PROGRESS' as any,
     });
 
     expect(inProgress.status).toBe('IN_PROGRESS');
