@@ -145,7 +145,8 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
 
   // Category F: Manager Hierarchy IDOR
   it('F01: prevents manager from reviewing non-direct report appraisal', async () => {
-    const app = await prisma.appraisal.create({ data: { companyId: companyAId, cycleId, employeeId: employeeBId } });
+    const cycleF = await PerformanceService.createCycle({ companyId: companyAId, name: 'Cycle F', startDate: new Date(), endDate: new Date(), actorUserId: adminUserId, actorEmail: 'admin.real@sarwin.com', actorRole: 'ADMIN' });
+    const app = await prisma.appraisal.create({ data: { companyId: companyAId, cycleId: cycleF.id, employeeId: employeeBId } });
     await expect(PerformanceService.managerReview({ companyId: companyAId, appraisalId: app.id, managerEmployeeId: managerId, managerRating: 4.0, finalScore: 4.0, actorEmail: 'mgr.real@sarwin.com', actorRole: 'MANAGER', isHrAdmin: false })).rejects.toThrow('Reporting Hierarchy Violation');
   });
   it('F02: prevents managers from reviewing themselves', async () => {
@@ -202,7 +203,8 @@ describe('Phase 8I: Real Enterprise Hardening & Production Readiness Integration
     expect(() => checkApproval('user-a', 'user-a')).toThrow('Maker-Checker Violation');
   });
   it('H04: prevents unreviewed appraisals from being locked', async () => {
-    const newApp = await prisma.appraisal.create({ data: { companyId: companyAId, cycleId, employeeId: employeeBId, status: AppraisalStatus.DRAFT } });
+    const cycleH = await PerformanceService.createCycle({ companyId: companyAId, name: 'Cycle H', startDate: new Date(), endDate: new Date(), actorUserId: adminUserId, actorEmail: 'admin.real@sarwin.com', actorRole: 'ADMIN' });
+    const newApp = await prisma.appraisal.create({ data: { companyId: companyAId, cycleId: cycleH.id, employeeId: employeeBId, status: AppraisalStatus.DRAFT } });
     await expect(PerformanceService.lockAppraisal({ companyId: companyAId, appraisalId: newApp.id, approverUserId: adminUserId, actorEmail: 'admin.real@sarwin.com', actorRole: 'ADMIN' })).rejects.toThrow('Appraisal must be in MANAGER_REVIEWED state');
   });
   it('H05: validates maker-checker audit logging on appraisal locks', async () => {
