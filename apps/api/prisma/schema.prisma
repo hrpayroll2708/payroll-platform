@@ -570,7 +570,7 @@ model SalaryRevision {
   id                  String             @id @default(uuid())
   companyId           String
   employeeId          String
-  assignmentId        String?            @unique("RevisionAssignment")
+  assignmentId        String?            @unique
   currentAnnualCtc    Float
   proposedAnnualCtc   Float
   revisionPercentage  Float
