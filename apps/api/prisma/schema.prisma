@@ -65,6 +65,10 @@ model Company {
   statutoryChallans         StatutoryChallan[]
   challanAllocations        ChallanAllocation[]
 
+  // Phase 8A Additions
+  attendanceRegularizations AttendanceRegularizationRequest[]
+  employeeNotifications     EmployeeNotification[]
+
   @@index([code])
 }
 
@@ -274,6 +278,13 @@ enum LeaveRequestStatus {
   CANCELLED
 }
 
+enum RegularizationStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum HalfDaySession {
   FIRST_HALF
   SECOND_HALF
@@ -434,6 +445,48 @@ model AttendanceRecord {
   @@unique([employeeId, attendanceDate])
   @@index([companyId, attendanceDate])
   @@index([attendanceDate, status])
+}
+
+model AttendanceRegularizationRequest {
+  id                  String               @id @default(uuid())
+  companyId           String
+  employeeId          String
+  attendanceDate      DateTime             @db.Date
+  requestedStatus     AttendanceStatus     @default(PRESENT)
+  requestedCheckIn    DateTime?
+  requestedCheckOut   DateTime?
+  reason              String
+  status              RegularizationStatus @default(SUBMITTED)
+  approverId          String?
+  approvedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee             @relation("EmployeeRegularizations", fields: [employeeId], references: [id], onDelete: Cascade)
+  approver            Employee?            @relation("RegularizationApprover", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, employeeId])
+  @@index([employeeId, attendanceDate])
+  @@index([status])
+}
+
+model EmployeeNotification {
+  id                  String               @id @default(uuid())
+  companyId           String
+  employeeId          String
+  title               String
+  message             String
+  type                String               @default("SYSTEM") // LEAVE, ATTENDANCE, TAX, PAYSLIP, SYSTEM
+  isRead              Boolean              @default(false)
+  linkUrl             String?
+  createdAt           DateTime             @default(now())
+
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee            Employee             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId, isRead])
 }
 
 model AttendancePeriodLock {
@@ -1051,8 +1104,8 @@ model StatutoryChallan {
   financialYear       String
   quarter             String?
   month               Int?
-  bsrCode             String             // 7-digit bank branch BSR code
-  challanNumber       String             // 5-digit bank serial number
+  bsrCode             String
+  challanNumber       String
   depositDate         DateTime           @db.Date
   taxAmount           Float              @default(0.0)
   surcharge           Float              @default(0.0)
@@ -1234,12 +1287,18 @@ model Employee {
   investmentProofs  InvestmentProofDocument[]
   previousEmployerIncomes PreviousEmployerIncome[]
 
+  // Phase 8A Additions
+  regularizationRequests AttendanceRegularizationRequest[] @relation("EmployeeRegularizations")
+  approvedRegularizations AttendanceRegularizationRequest[] @relation("RegularizationApprover")
+  notifications          EmployeeNotification[]
+
   @@index([companyId, employmentStatus])
   @@index([employeeCode])
   @@index([email])
   @@index([departmentId])
   @@index([designationId])
   @@index([locationId])
+  @@index([managerId])
 }
 
 model EmployeeDocument {
