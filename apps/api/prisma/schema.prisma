@@ -81,6 +81,9 @@ model Company {
   // Phase 8E Additions
   savedReports              SavedReport[]
 
+  // Phase 8D Additions
+  disbursementBatches       DisbursementBatch[]
+
   @@index([code])
 }
 
@@ -565,7 +568,7 @@ model SalaryComponent {
   isStatutory             Boolean              @default(false)
   isActive                Boolean              @default(true)
   createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
+  updatedAt             DateTime             @updatedAt
 
   company                 Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   structureMappings       SalaryStructureComponent[]
@@ -725,6 +728,32 @@ enum FnfStatus {
   LOCKED
 }
 
+enum BatchStatus {
+  PENDING
+  VALIDATED
+  READY
+  APPROVED
+  SUBMITTED
+  PROCESSING
+  SUCCESS
+  FAILED
+  REJECTED
+  REVERSED
+}
+
+enum InstructionStatus {
+  PENDING
+  VALIDATED
+  READY
+  APPROVED
+  SUBMITTED
+  PROCESSING
+  SUCCESS
+  FAILED
+  REJECTED
+  REVERSED
+}
+
 model PayrollCycle {
   id                  String             @id @default(uuid())
   companyId           String
@@ -769,6 +798,7 @@ model PayrollCycle {
   complianceExceptions ComplianceException[]
   challanAllocations  ChallanAllocation[]
   expenseClaims       EmployeeExpenseClaim[]
+  disbursementBatches DisbursementBatch[]
 
   @@unique([companyId, month, year])
   @@index([companyId, status])
@@ -847,7 +877,7 @@ model PayrollException {
   createdAt           DateTime           @default(now())
 
   payrollCycle        PayrollCycle       @relation(fields: [payrollCycleId], references: [id], onDelete: Cascade)
-  employee            Employee?          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee            Employee?          @relation(fields: [employeeId], references: [id], onDelete: SetNull)
 
   @@index([payrollCycleId, severity, isResolved])
 }
@@ -1447,7 +1477,60 @@ model SavedReport {
 }
 
 // --------------------------------------------------
-// 12. PRESERVED EMPLOYEE MODEL (Additive Relations)
+// 12. PHASE 8D BANKING & DISBURSEMENTS
+// --------------------------------------------------
+model DisbursementBatch {
+  id                String               @id @default(uuid())
+  companyId         String
+  payrollCycleId    String
+  batchReference    String               @unique
+  financialYear     String
+  paymentDate       DateTime             @db.Date
+  totalRecords      Int                  @default(0)
+  totalAmount       Float                @default(0.0)
+  status            BatchStatus          @default(PENDING)
+  createdById       String
+  approvedById      String?
+  approvedAt        DateTime?
+  lockedAt          DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  company           Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payrollCycle      PayrollCycle         @relation(fields: [payrollCycleId], references: [id], onDelete: Cascade)
+  instructions      PaymentInstruction[]
+
+  @@index([companyId, status])
+  @@index([payrollCycleId])
+}
+
+model PaymentInstruction {
+  id                String            @id @default(uuid())
+  batchId           String
+  employeeId        String
+  payrollRecordId   String            @unique
+  beneficiaryName   String
+  bankName          String?
+  maskedAccount     String            // e.g. XXXXXXXX1234
+  ifscCode          String
+  netPayable        Float
+  utrNumber         String?
+  status            InstructionStatus @default(PENDING)
+  failureReason     String?
+  retryCount        Int               @default(0)
+  processedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  batch             DisbursementBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  employee          Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, status])
+  @@index([employeeId])
+}
+
+// --------------------------------------------------
+// 13. PRESERVED EMPLOYEE MODEL (Additive Relations)
 // --------------------------------------------------
 enum EmploymentStatus {
   DRAFT
@@ -1540,6 +1623,9 @@ model Employee {
   resignation            ResignationRequest? @relation("EmployeeResignation")
   reviewedResignations   ResignationRequest[] @relation("ResignationReviewer")
   fnfSettlement          FnFSettlement?      @relation("EmployeeFnFSettlement")
+
+  // Phase 8D Additions
+  paymentInstructions    PaymentInstruction[]
 
   @@index([companyId, employmentStatus])
   @@index([employeeCode])
