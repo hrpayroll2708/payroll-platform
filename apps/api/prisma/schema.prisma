@@ -53,7 +53,6 @@ model Company {
   payrollCycles     PayrollCycle[]
   payrollAdjustments PayrollAdjustment[]
 
-  // Phase 7 Additions
   statutoryConfigurations   StatutoryConfiguration[]
   compliancePeriods         CompliancePeriod[]
   employeeStatutoryProfiles EmployeeStatutoryProfile[]
@@ -65,24 +64,19 @@ model Company {
   statutoryChallans         StatutoryChallan[]
   challanAllocations        ChallanAllocation[]
 
-  // Phase 8A Additions
   attendanceRegularizations AttendanceRegularizationRequest[]
   employeeNotifications     EmployeeNotification[]
 
-  // Phase 8B Additions
   reimbursementHeads        ReimbursementHeadConfig[]
   fbpAllocations            FlexibleBenefitAllocation[]
   expenseClaims             EmployeeExpenseClaim[]
 
-  // Phase 8C Additions
   resignationRequests       ResignationRequest[]
   fnfSettlements            FnFSettlement[]
 
-  // Phase 8E Additions
   savedReports              SavedReport[]
-
-  // Phase 8D Additions
   disbursementBatches       DisbursementBatch[]
+  helpdeskTickets           HelpdeskTicket[]
 
   @@index([code])
 }
@@ -107,6 +101,7 @@ model User {
   userRoles         UserRole[]
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
+  ticketComments    TicketComment[]
 
   @@index([companyId, email])
 }
@@ -568,7 +563,7 @@ model SalaryComponent {
   isStatutory             Boolean              @default(false)
   isActive                Boolean              @default(true)
   createdAt               DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
+  updatedAt               DateTime             @updatedAt
 
   company                 Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   structureMappings       SalaryStructureComponent[]
@@ -1511,7 +1506,7 @@ model PaymentInstruction {
   payrollRecordId   String            @unique
   beneficiaryName   String
   bankName          String?
-  maskedAccount     String            // e.g. XXXXXXXX1234
+  maskedAccount     String
   ifscCode          String
   netPayable        Float
   utrNumber         String?
@@ -1530,7 +1525,76 @@ model PaymentInstruction {
 }
 
 // --------------------------------------------------
-// 13. PRESERVED EMPLOYEE MODEL (Additive Relations)
+// 13. PHASE 8G HELPDESK & GRIEVANCE TICKETING
+// --------------------------------------------------
+enum HelpdeskDepartment {
+  PAYROLL
+  HR
+  IT
+  TAX
+  FACILITIES
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_INPUT
+  RESOLVED
+  CLOSED
+}
+
+model HelpdeskTicket {
+  id              String             @id @default(uuid())
+  companyId       String
+  employeeId      String
+  assigneeId      String?
+  ticketNumber    String             @unique
+  department      HelpdeskDepartment @default(HR)
+  category        String
+  priority        TicketPriority     @default(MEDIUM)
+  status          TicketStatus       @default(OPEN)
+  subject         String
+  description     String
+  resolutionNotes String?
+  slaDueDate      DateTime
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee        Employee           @relation("TicketCreator", fields: [employeeId], references: [id], onDelete: Cascade)
+  assignee        Employee?          @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments        TicketComment[]
+
+  @@index([companyId, status])
+  @@index([employeeId])
+  @@index([department])
+}
+
+model TicketComment {
+  id          String         @id @default(uuid())
+  ticketId    String
+  authorId    String
+  body        String
+  isInternal  Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+
+  ticket      HelpdeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+// --------------------------------------------------
+// 14. PRESERVED EMPLOYEE MODEL (Additive Relations)
 // --------------------------------------------------
 enum EmploymentStatus {
   DRAFT
@@ -1624,8 +1688,11 @@ model Employee {
   reviewedResignations   ResignationRequest[] @relation("ResignationReviewer")
   fnfSettlement          FnFSettlement?      @relation("EmployeeFnFSettlement")
 
-  // Phase 8D Additions
   paymentInstructions    PaymentInstruction[]
+
+  // Phase 8G Additions
+  createdTickets         HelpdeskTicket[]    @relation("TicketCreator")
+  assignedTickets        HelpdeskTicket[]    @relation("TicketAssignee")
 
   @@index([companyId, employmentStatus])
   @@index([employeeCode])
