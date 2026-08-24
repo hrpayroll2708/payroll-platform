@@ -70,7 +70,7 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
     });
     employee1Id = emp.id;
 
-    // 3. Create Q1 Locked Payroll Cycles (Apr, May, Jun 2026)
+    // 3. Create Q1 Locked Payroll Cycle (April 2026)
     const cycleApr = await prisma.payrollCycle.create({
       data: {
         companyId,
@@ -159,7 +159,7 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
       ChallanService.recordChallan({
         companyId,
         financialYear: '2026-2027',
-        bsrCode: '12345', // only 5 digits
+        bsrCode: '12345',
         challanNumber: '00123',
         depositDate: new Date('2026-05-06'),
         taxAmount: 5000,
@@ -210,7 +210,7 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
     await expect(
       ChallanService.allocateChallan({
         companyId,
-        challanId, // already fully allocated
+        challanId,
         payrollCycleId,
         amount: 1000,
         actorUserId: adminUserId,
@@ -373,7 +373,7 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
       Form24QService.prepareForm24Q({
         companyId,
         financialYear: '2026-2027',
-        quarter: 'Q3', // No locked payroll
+        quarter: 'Q3',
         actorUserId: adminUserId,
         actorEmail: 'admin@sarwin.com',
         actorRole: 'PAYROLL_ADMIN',
@@ -396,13 +396,37 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
   });
 
   it('[RECON 02] TDS Reconciliation reports MISSING_CHALLAN when no deposits exist', async () => {
+    // Seed Q2 payroll cycle with TDS deduction but no deposited challans
+    await prisma.payrollCycle.create({
+      data: {
+        companyId,
+        month: 7, // July -> Q2
+        year: 2026,
+        periodStartDate: new Date('2026-07-01'),
+        periodEndDate: new Date('2026-07-31'),
+        paymentDueDate: new Date('2026-08-07'),
+        status: 'LOCKED',
+        totalHeadcount: 1,
+        totalGrossPayable: 150000,
+        totalNetPayout: 135000,
+        totalEpfEmployee: 1800,
+        totalEpfEmployer: 1800,
+        totalEsicEmployee: 0,
+        totalEsicEmployer: 0,
+        totalPt: 200,
+        totalTds: 14000,
+      },
+    });
+
     const report = await StatutoryReconciliationService.reconcileTds({
       companyId,
       financialYear: '2026-2027',
-      quarter: 'Q2', // No challans
+      quarter: 'Q2',
     });
 
     expect(report.status).toBe('MISSING_CHALLAN');
+    expect(report.totalTdsDeducted).toBe(14000);
+    expect(report.totalTdsDeposited).toBe(0);
   });
 
   it('[RECON 03] EPF Reconciliation confirms matching employee & employer shares', async () => {
@@ -462,7 +486,7 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
     });
 
     const dash = await ComplianceDashboardService.getDashboardMetrics({ companyId, financialYear: '2026-2027' });
-    expect(dash.healthScore).toBe(80); // 100 - 20
+    expect(dash.healthScore).toBe(80);
   });
 
   it('[RECON 09] Exception resolution updates state and restores health score', async () => {
@@ -498,8 +522,8 @@ describe('Phase 7D: Form 24Q, Challans & Statutory Reconciliation Test Suite (36
   it('[SEC 02] Cross-tenant challan allocation is strictly forbidden', async () => {
     await expect(
       ChallanService.allocateChallan({
-        companyId: tenantBId, // Wrong tenant
-        challanId,           // Belongs to Tenant A
+        companyId: tenantBId,
+        challanId,
         amount: 5000,
         actorUserId: adminUserId,
         actorEmail: 'admin@sarwin.com',
