@@ -9,7 +9,7 @@ router.get('/', requireAuth, requirePermission('HELPDESK_READ'), async (req: Aut
     const isHrAdmin = req.user!.roles.includes('SUPER_ADMIN') || req.user!.roles.includes('PAYROLL_ADMIN') || req.user!.roles.includes('HR_ADMIN');
     const tickets = await HelpdeskService.listTickets({
       companyId: req.user!.companyId,
-      employeeId: req.user!.employeeId,
+      employeeId: req.user!.employeeId || undefined,
       isHrAdmin,
       status: req.query.status as any,
       department: req.query.department as any,
