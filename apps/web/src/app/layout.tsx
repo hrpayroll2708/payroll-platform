@@ -1,4 +1,5 @@
 ﻿import './globals.css';
+import React from 'react';
 
 export const metadata = {
   title: 'SARWIN HRPAYROLL | Enterprise HR & Payroll Platform',
@@ -18,12 +19,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
         <style dangerouslySetInnerHTML={{ __html: `
-          * { box-sizing: border-box; }
-          body { font-family: 'Plus Jakarta Sans', sans-serif !important; margin: 0; padding: 0; background-color: #0F172A; color: #F8FAFC; }
+          body { font-family: 'Plus Jakarta Sans', sans-serif !important; }
           .font-mono { font-family: 'JetBrains Mono', monospace !important; }
         `}} />
       </head>
-      <body>{children}</body>
+      <body className="bg-slate-900 text-slate-100 antialiased">{children}</body>
     </html>
   );
 }

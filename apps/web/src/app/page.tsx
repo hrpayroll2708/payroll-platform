@@ -17,7 +17,6 @@ export default function SarwinHRPayrollApp() {
   const [payslipModalData, setPayslipModalData] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // New Employee Form State
   const [newEmp, setNewEmp] = useState({
     name: "",
     email: "",
@@ -30,7 +29,6 @@ export default function SarwinHRPayrollApp() {
     ifsc: "HDFC0001234"
   });
 
-  // Payroll State
   const [payrollData, setPayrollData] = useState(null);
   const [lopRecords, setLopRecords] = useState({});
   const [payrollStep, setPayrollStep] = useState(1);
@@ -87,10 +85,10 @@ export default function SarwinHRPayrollApp() {
         });
         await fetchEmployees();
         await fetchDashboardStats();
-        showToast("Employee enrolled into SARWIN HRPAYROLL roster.");
+        showToast("Employee enrolled into SARWIN HRPAYROLL.");
       }
     } catch (err) {
-      showToast("Error saving employee.");
+      showToast("Error enrolling employee.");
     } finally {
       setLoading(false);
     }
@@ -111,7 +109,7 @@ export default function SarwinHRPayrollApp() {
         showToast("August 2026 Statutory Payroll computed successfully.");
       }
     } catch (err) {
-      showToast("Failed to compute statutory payroll cycle.");
+      showToast("Failed to compute statutory payroll.");
     } finally {
       setLoading(false);
     }
@@ -146,7 +144,7 @@ export default function SarwinHRPayrollApp() {
 
   return (
     <div className="flex h-screen bg-[#0F172A] text-slate-100 font-sans antialiased overflow-hidden">
-      {/* Toast Notification */}
+      {/* Toast */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl z-50 text-xs font-bold flex items-center gap-3 border border-slate-700">
           <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
@@ -154,10 +152,9 @@ export default function SarwinHRPayrollApp() {
         </div>
       )}
 
-      {/* Enterprise Left Sidebar */}
+      {/* Sidebar */}
       <aside className="w-64 bg-[#090E1A] text-slate-300 flex flex-col justify-between shrink-0 border-r border-slate-800">
         <div>
-          {/* Brand Header */}
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center font-extrabold text-white text-base shadow-lg">
@@ -178,7 +175,6 @@ export default function SarwinHRPayrollApp() {
             </span>
           </div>
 
-          {/* Navigation Links */}
           <div className="p-3 space-y-4 text-xs">
             <div>
               <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -189,7 +185,7 @@ export default function SarwinHRPayrollApp() {
                   onClick={() => setActiveTab("dashboard")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "dashboard"
-                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      ? "bg-blue-600 text-white font-bold shadow-md"
                       : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
@@ -200,7 +196,7 @@ export default function SarwinHRPayrollApp() {
                   onClick={() => setActiveTab("employees")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "employees"
-                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      ? "bg-blue-600 text-white font-bold shadow-md"
                       : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
@@ -219,7 +215,7 @@ export default function SarwinHRPayrollApp() {
                   onClick={() => setActiveTab("attendance")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "attendance"
-                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      ? "bg-blue-600 text-white font-bold shadow-md"
                       : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
@@ -230,7 +226,7 @@ export default function SarwinHRPayrollApp() {
                   onClick={() => setActiveTab("payroll")}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "payroll"
-                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      ? "bg-blue-600 text-white font-bold shadow-md"
                       : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
@@ -246,7 +242,7 @@ export default function SarwinHRPayrollApp() {
                   onClick={() => setActiveTab("compliance")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "compliance"
-                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      ? "bg-blue-600 text-white font-bold shadow-md"
                       : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
@@ -257,7 +253,7 @@ export default function SarwinHRPayrollApp() {
                   onClick={() => setActiveTab("reports")}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
                     activeTab === "reports"
-                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                      ? "bg-blue-600 text-white font-bold shadow-md"
                       : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
@@ -269,7 +265,6 @@ export default function SarwinHRPayrollApp() {
           </div>
         </div>
 
-        {/* User Identity Profile Footer */}
         <div className="p-4 border-t border-slate-800 bg-[#060913] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-bold text-xs text-blue-400">
@@ -283,10 +278,9 @@ export default function SarwinHRPayrollApp() {
         </div>
       </aside>
 
-      {/* Main Workspace Frame */}
+      {/* Main Content */}
       <main className="flex-1 flex flex-col bg-[#F8FAFC] text-slate-800 overflow-y-auto">
-        {/* Top Command Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-xs">
+        <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block"></span>
             <span className="text-xs font-semibold text-slate-700">
@@ -297,20 +291,20 @@ export default function SarwinHRPayrollApp() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setModalOpen(true)}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow transition"
             >
               + Enrol Employee
             </button>
             <button
               onClick={() => { setActiveTab("payroll"); setPayrollStep(1); }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow transition"
             >
               Execute Payroll Run
             </button>
           </div>
         </header>
 
-        {/* Tab 1: Executive Dashboard */}
+        {/* Dashboard */}
         {activeTab === "dashboard" && (
           <div className="p-8 space-y-6 max-w-7xl">
             <div>
@@ -320,21 +314,16 @@ export default function SarwinHRPayrollApp() {
               </p>
             </div>
 
-            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Headcount</p>
                 <div className="mt-3 flex items-baseline justify-between">
-                  <span className="text-3xl font-black text-slate-900">
-                    {stats?.totalEmployees || employees.length}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px]">
-                    100% Active
-                  </span>
+                  <span className="text-3xl font-black text-slate-900">{stats?.totalEmployees || employees.length}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px]">100% Active</span>
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gross Monthly Run</p>
                 <div className="mt-3">
                   <span className="text-3xl font-black text-slate-900 font-mono">
@@ -344,7 +333,7 @@ export default function SarwinHRPayrollApp() {
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statutory Liability</p>
                 <div className="mt-3">
                   <span className="text-3xl font-black text-slate-900 font-mono">
@@ -354,7 +343,7 @@ export default function SarwinHRPayrollApp() {
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Compliance Status</p>
                 <div className="mt-3 flex items-baseline justify-between">
                   <span className="text-2xl font-black text-emerald-600">100% OK</span>
@@ -363,8 +352,7 @@ export default function SarwinHRPayrollApp() {
               </div>
             </div>
 
-            {/* Launch Banner */}
-            <div className="bg-gradient-to-r from-slate-900 to-blue-950 rounded-2xl p-6 text-white flex items-center justify-between shadow-xl border border-slate-800">
+            <div className="bg-gradient-to-r from-slate-900 to-blue-950 rounded-2xl p-6 text-white flex items-center justify-between shadow-xl">
               <div className="space-y-1">
                 <span className="px-2 py-0.5 rounded bg-blue-500/30 text-blue-300 font-bold text-[10px] uppercase">
                   SARWIN Engine Ready
@@ -384,7 +372,7 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* Tab 2: Employee 360 Directory */}
+        {/* Employees */}
         {activeTab === "employees" && (
           <div className="p-8 space-y-6 max-w-7xl">
             <div className="flex items-center justify-between">
@@ -400,7 +388,7 @@ export default function SarwinHRPayrollApp() {
               </button>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
               <input
                 type="text"
                 placeholder="Search by Employee Code, Name, or Department..."
@@ -421,7 +409,7 @@ export default function SarwinHRPayrollApp() {
               </select>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
                   <tr>
@@ -441,9 +429,7 @@ export default function SarwinHRPayrollApp() {
                         <p className="font-mono text-[10px] text-blue-600">{emp.employeeCode}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[10px]">
-                          {emp.department}
-                        </span>
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[10px]">{emp.department}</span>
                         <p className="text-[11px] text-slate-500 mt-0.5">{emp.designation}</p>
                       </td>
                       <td className="px-6 py-4 font-mono text-[11px] text-slate-600">
@@ -473,11 +459,11 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* Tab 3: Attendance & LOP */}
+        {/* Attendance */}
         {activeTab === "attendance" && (
           <div className="p-8 space-y-6 max-w-5xl">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Attendance & Loss of Pay (LOP)</h2>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-b border-slate-200">
                   <tr>
@@ -522,11 +508,11 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* Tab 4: Payroll Command Center */}
+        {/* Payroll */}
         {activeTab === "payroll" && (
           <div className="p-8 space-y-6 max-w-7xl">
             {payrollStep < 4 ? (
-              <div className="bg-white p-10 rounded-2xl border border-slate-200 shadow-xs text-center max-w-xl mx-auto space-y-5">
+              <div className="bg-white p-10 rounded-2xl border border-slate-200 shadow-sm text-center max-w-xl mx-auto space-y-5">
                 <h3 className="text-xl font-black text-slate-900">Execute August 2026 Payroll Cycle</h3>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
                   SARWIN engine computes Indian statutory deductions (EPF 12%, ESIC 0.75%, Professional Tax, TDS) across all {employees.length} enrolled employees.
@@ -569,7 +555,7 @@ export default function SarwinHRPayrollApp() {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-slate-200 flex items-center justify-between">
                       <h4 className="text-xs font-bold text-slate-900 uppercase">August 2026 Finalized Payroll Register</h4>
                       <button
@@ -626,7 +612,7 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* Tab 5: Compliance Hub */}
+        {/* Compliance */}
         {activeTab === "compliance" && (
           <div className="p-8 space-y-6 max-w-5xl">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Compliance & Statutory Hub</h2>
@@ -650,7 +636,7 @@ export default function SarwinHRPayrollApp() {
           </div>
         )}
 
-        {/* Tab 6: Disbursement Reports */}
+        {/* Reports */}
         {activeTab === "reports" && (
           <div className="p-8 space-y-6 max-w-5xl">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Disbursement Reports</h2>
@@ -670,7 +656,7 @@ export default function SarwinHRPayrollApp() {
         )}
       </main>
 
-      {/* Modal 1: Enrol Employee */}
+      {/* Enrol Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
@@ -765,7 +751,7 @@ export default function SarwinHRPayrollApp() {
         </div>
       )}
 
-      {/* Modal 2: Employee 360 */}
+      {/* 360 Profile Modal */}
       {profileModalData && (
         <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
@@ -787,7 +773,7 @@ export default function SarwinHRPayrollApp() {
         </div>
       )}
 
-      {/* Modal 3: SARWIN Payslip */}
+      {/* Payslip Modal */}
       {payslipModalData && (
         <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 text-slate-800" id="sarwin-printable-payslip">
