@@ -31,7 +31,7 @@ export class StatutoryConfigService {
       where: {
         companyId: params.companyId,
         configType: params.configType,
-        status: StatutoryConfigStatus.ACTIVE,
+        status: { in: [StatutoryConfigStatus.ACTIVE, StatutoryConfigStatus.SUPERSEDED] },
         jurisdictionState: params.jurisdictionState || null,
         effectiveFrom: { lte: params.targetDate },
         OR: [
