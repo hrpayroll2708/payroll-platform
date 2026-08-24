@@ -111,7 +111,7 @@ export class ExpenseClaimService {
       where: { id: params.claimId, employeeId: params.employeeId, companyId: params.companyId },
     });
     if (!claim) throw new Error('Claim not found');
-    if (![ExpenseClaimStatus.DRAFT, ExpenseClaimStatus.SUBMITTED].includes(claim.status)) {
+    if (claim.status !== ExpenseClaimStatus.DRAFT && claim.status !== ExpenseClaimStatus.SUBMITTED) {
       throw new Error('Only DRAFT or SUBMITTED claims can be cancelled');
     }
 
@@ -121,9 +121,6 @@ export class ExpenseClaimService {
     });
   }
 
-  /**
-   * Review claim: Supports full approval, partial approval, and rejection with payroll integration
-   */
   public static async reviewClaim(params: {
     companyId: string;
     reviewerEmployeeId: string;
@@ -180,7 +177,6 @@ export class ExpenseClaimService {
     }
 
     return prisma.$transaction(async (tx) => {
-      // Find open or provided payroll cycle for integration
       let cycle = null;
       if (params.targetPayrollCycleId) {
         cycle = await tx.payrollCycle.findFirst({
@@ -205,7 +201,7 @@ export class ExpenseClaimService {
         },
       });
 
-      // Payroll Integration: Inject non-taxable / taxable reimbursement as PayrollAdjustment
+      // Inject approved claims into PayrollAdjustment table
       if (approvedAmount > 0 && cycle && cycle.status !== 'LOCKED') {
         await tx.payrollAdjustment.create({
           data: {
