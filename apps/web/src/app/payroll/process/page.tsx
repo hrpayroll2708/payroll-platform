@@ -19,8 +19,8 @@ export default function PayrollProcessPage() {
   const fetchInitialData = async () => {
     try {
       const [empRes, runRes] = await Promise.all([
-        fetch('http://localhost:4000/api/employees'),
-        fetch('http://localhost:4000/api/payroll/latest')
+        fetch('https://payroll-platform-i9rn.onrender.com/api/employees'),
+        fetch('https://payroll-platform-i9rn.onrender.com/api/payroll/latest')
       ]);
       const empData = await empRes.json();
       const runData = await runRes.json();
@@ -41,7 +41,7 @@ export default function PayrollProcessPage() {
     if (!firstName || !lastName || !empCode) return;
 
     try {
-      const res = await fetch('http://localhost:4000/api/employees', {
+      const res = await fetch('https://payroll-platform-i9rn.onrender.com/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ first_name: firstName, last_name: lastName, employee_code: empCode })
@@ -62,7 +62,7 @@ export default function PayrollProcessPage() {
     setProcessing(true);
     setStatusMsg('Executing statutory calculations...');
     try {
-      const res = await fetch('http://localhost:4000/api/payroll/run', { method: 'POST' });
+      const res = await fetch('https://payroll-platform-i9rn.onrender.com/api/payroll/run', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Server error occurred');
 
@@ -78,7 +78,7 @@ export default function PayrollProcessPage() {
   };
 
   const downloadBankFile = () => {
-    window.open('http://localhost:4000/api/payroll/export-bank-file', '_blank');
+    window.open('https://payroll-platform-i9rn.onrender.com/api/payroll/export-bank-file', '_blank');
   };
 
   useEffect(() => {
