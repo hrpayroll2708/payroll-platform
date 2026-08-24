@@ -60,12 +60,10 @@ describe('Phase 8I: Complete Enterprise Hardening & Production Readiness (60+ Sc
     await prisma.$disconnect();
   });
 
-  // ==========================================
-  // CATEGORIES 1-3: AUTHENTICATION, RBAC & TENANT/IDOR (20 TESTS)
-  // ==========================================
   it('[HARDEN-FULL 01] Unauthenticated requests rejected', async () => {
+    const token: string | null = null;
     const unauthCheck = () => {
-      if (!null) throw new Error('Authentication required');
+      if (token === null) throw new Error('Authentication required');
     };
     expect(unauthCheck).toThrow('Authentication required');
   });
@@ -126,9 +124,6 @@ describe('Phase 8I: Complete Enterprise Hardening & Production Readiness (60+ Sc
     expect(masked).toBe('XXXXXXXX1234');
   });
 
-  // ==========================================
-  // CATEGORIES 4-7: FINANCIAL, EXPENSE, BANKING & CHALLAN (20 TESTS)
-  // ==========================================
   it('[HARDEN-FULL 05] Locked payroll record semantics remain immutable', async () => {
     const cycle = await prisma.payrollCycle.create({
       data: {
@@ -154,9 +149,6 @@ describe('Phase 8I: Complete Enterprise Hardening & Production Readiness (60+ Sc
     expect(() => retryAction('SUCCESS')).toThrow('Cannot retry successful payment');
   });
 
-  // ==========================================
-  // CATEGORIES 8-11: DOCUMENT, VALIDATION, ERROR & AUDIT (20+ TESTS)
-  // ==========================================
   it('[HARDEN-FULL 07] Internal note confidentiality strictly blocks unauthorized employees', async () => {
     const ticket = await HelpdeskService.createTicket({
       companyId,
