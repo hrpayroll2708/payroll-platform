@@ -79,8 +79,8 @@ model User {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  company           Company          @relation(fields: [companyId], references: [id])
-  employee          Employee?        @relation(fields: [employeeId], references: [id])
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee          Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   userRoles         UserRole[]
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
@@ -164,8 +164,8 @@ model AuditLog {
   userAgent         String?
   createdAt         DateTime     @default(now())
 
-  company           Company      @relation(fields: [companyId], references: [id])
-  user              User?        @relation(fields: [userId], references: [id])
+  company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([companyId, action])
   @@index([entity, entityId])
@@ -949,11 +949,11 @@ model EmployeeTaxDeclaration {
   id                  String             @id @default(uuid())
   companyId           String
   employeeId          String
-  financialYear       String             // "2026-2027"
+  financialYear       String
   taxRegime           TaxRegime          @default(NEW_REGIME_115BAC)
   status              DeclarationStatus  @default(DRAFT)
   sectionCategory     TaxSectionCategory
-  itemCode            String             // e.g. "80C_PPF", "80C_ELSS", "80D_HEALTH_SELF", "SEC24_INTEREST"
+  itemCode            String
   description         String?
   declaredAmount      Float              @default(0.0)
   approvedAmount      Float              @default(0.0)
@@ -977,7 +977,7 @@ model InvestmentProofDocument {
   companyId           String
   declarationId       String
   employeeId          String
-  documentType        String             // "RECEIPT", "POLICY_CERTIFICATE", "FORM16_PREV"
+  documentType        String
   fileName            String
   fileUrl             String
   fileSize            Int                @default(0)
@@ -1003,7 +1003,7 @@ model PreviousEmployerIncome {
   id                  String             @id @default(uuid())
   companyId           String
   employeeId          String
-  financialYear       String             // "2026-2027"
+  financialYear       String
   employerName        String
   grossSalary         Float              @default(0.0)
   exemptions          Float              @default(0.0)
@@ -1131,7 +1131,7 @@ model Employee {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
-  company          Company?           @relation(fields: [companyId], references: [id])
+  company          Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user             User?
   manager          Employee?          @relation("ManagerSubordinates", fields: [managerId], references: [id])
   subordinates     Employee[]         @relation("ManagerSubordinates")

@@ -23,8 +23,10 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     await prisma.payrollCycle.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.employeeStatutoryProfile.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.statutoryConfiguration.deleteMany({ where: { company: { code: { in: testCodes } } } });
-    await prisma.employee.deleteMany({ where: { company: { code: { in: testCodes } } } });
+    await prisma.auditLog.deleteMany({ where: { company: { code: { in: testCodes } } } });
+    await prisma.userRole.deleteMany({ where: { user: { company: { code: { in: testCodes } } } } });
     await prisma.user.deleteMany({ where: { company: { code: { in: testCodes } } } });
+    await prisma.employee.deleteMany({ where: { company: { code: { in: testCodes } } } });
     await prisma.company.deleteMany({ where: { code: { in: testCodes } } });
 
     // 2. Setup test tenant
@@ -163,9 +165,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     await prisma.$disconnect();
   });
 
-  // ==========================================
   // SECTION 1: EPF CALCULATIONS (8 TESTS)
-  // ==========================================
   it('[EPF 01] Standard eligible employee (Basic ₹37.5k capped at ₹15k wage ceiling)', async () => {
     const res = await StatutoryCalculatorService.calculateEpf({
       companyId,
@@ -177,8 +177,8 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
 
     expect(res.isApplicable).toBe(true);
     expect(res.epfWages).toBe(15000);
-    expect(res.employeeContribution).toBe(1800); // 12% of 15000
-    expect(res.epsContribution).toBe(1250); // 8.33% of 15000
+    expect(res.employeeContribution).toBe(1800);
+    expect(res.epsContribution).toBe(1250);
     expect(res.excessWage).toBe(22500);
   });
 
@@ -192,7 +192,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     });
 
     expect(res.epfWages).toBe(12500);
-    expect(res.employeeContribution).toBe(1500); // 12% of 12500
+    expect(res.employeeContribution).toBe(1500);
     expect(res.excessWage).toBe(0);
   });
 
@@ -240,7 +240,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
 
   it('[EPF 06] Prorated LOP basic wage correctly scales contribution', async () => {
     const fullBasic = 30000;
-    const proratedEarnedBasic = Math.round((fullBasic * 15) / 30); // 15 days worked = ₹15,000
+    const proratedEarnedBasic = Math.round((fullBasic * 15) / 30);
 
     const res = await StatutoryCalculatorService.calculateEpf({
       companyId,
@@ -266,7 +266,6 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
       actorRole: 'PAYROLL_ADMIN',
     });
 
-    // Activated for company
     await prisma.statutoryConfiguration.update({
       where: { id: customConfig.id },
       data: { status: StatutoryConfigStatus.ACTIVE },
@@ -280,7 +279,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
       earnedBasicSalary: 30000,
     });
 
-    expect(res.employeeContribution).toBe(1500); // 10% of 15000
+    expect(res.employeeContribution).toBe(1500);
   });
 
   it('[EPF 08] Employer total contribution matches sum of EPF and EPS shares', async () => {
@@ -295,9 +294,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     expect(res.employerContribution).toBe(res.epsContribution + Math.round(12000 * 0.0367));
   });
 
-  // ==========================================
   // SECTION 2: ESIC CALCULATIONS (7 TESTS)
-  // ==========================================
   it('[ESIC 01] Eligible employee (Gross ₹20,000 <= ₹21,000 threshold)', async () => {
     const res = await StatutoryCalculatorService.calculateEsic({
       companyId,
@@ -308,8 +305,8 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     });
 
     expect(res.isEligible).toBe(true);
-    expect(res.employeeContribution).toBe(150); // 0.75% of 20000
-    expect(res.employerContribution).toBe(650); // 3.25% of 20000
+    expect(res.employeeContribution).toBe(150);
+    expect(res.employerContribution).toBe(650);
   });
 
   it('[ESIC 02] Ineligible employee (Gross ₹75,000 > ₹21,000 threshold)', async () => {
@@ -336,8 +333,8 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     });
 
     expect(res.isEligible).toBe(true);
-    expect(res.employeeContribution).toBe(158); // Math.ceil(21000 * 0.0075) = 158
-    expect(res.employerContribution).toBe(683); // Math.ceil(21000 * 0.0325) = 683
+    expect(res.employeeContribution).toBe(158);
+    expect(res.employerContribution).toBe(683);
   });
 
   it('[ESIC 04] Boundary condition: Gross ₹21,001 (₹1 above threshold)', async () => {
@@ -375,7 +372,6 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
       earnedGross: 15333,
     });
 
-    // 15333 * 0.0075 = 114.9975 => Ceil to ₹115
     expect(res.employeeContribution).toBe(115);
   });
 
@@ -384,17 +380,15 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
       companyId,
       targetDate: new Date('2026-08-24'),
       isEsicApplicable: true,
-      monthlyGross: 20000, // eligible base
-      earnedGross: 10000,  // 15 days worked
+      monthlyGross: 20000,
+      earnedGross: 10000,
     });
 
     expect(res.isEligible).toBe(true);
-    expect(res.employeeContribution).toBe(75); // 0.75% of 10000
+    expect(res.employeeContribution).toBe(75);
   });
 
-  // ==========================================
   // SECTION 3: PROFESSIONAL TAX CALCULATIONS (8 TESTS)
-  // ==========================================
   it('[PT 01] Karnataka (KA) slab for Gross > ₹15,000 returns ₹200', async () => {
     const res = await StatutoryCalculatorService.calculateProfessionalTax({
       companyId,
@@ -424,7 +418,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
       targetDate: new Date('2026-08-24'),
       stateCode: 'MH',
       earnedGross: 50000,
-      monthIndex: 8, // August
+      monthIndex: 8,
     });
 
     expect(res.monthlyDeduction).toBe(200);
@@ -436,7 +430,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
       targetDate: new Date('2027-02-15'),
       stateCode: 'MH',
       earnedGross: 50000,
-      monthIndex: 2, // February
+      monthIndex: 2,
     });
 
     expect(res.monthlyDeduction).toBe(300);
@@ -486,9 +480,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     expect(res.monthlyDeduction).toBe(200);
   });
 
-  // ==========================================
   // SECTION 4: ECR, ESIC & PT PREPARATION (4 TESTS)
-  // ==========================================
   it('[PREP 01] EPF ECR preparation compiles valid dataset and sha256 checksum', async () => {
     const ecr = await CompliancePreparationService.prepareEcrDataset({
       companyId,
@@ -514,7 +506,7 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     });
 
     expect(esic.status).toBe('PREPARED');
-    expect(esic.summary.totalEligibleEmployees).toBe(1); // Only Priya (₹20k gross)
+    expect(esic.summary.totalEligibleEmployees).toBe(1);
     expect(esic.records[0].ipNumber).toBe('31000123450001001');
   });
 
@@ -530,7 +522,6 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
   });
 
   it('[PREP 04] Compliance exception raised on missing UAN during ECR preparation', async () => {
-    // Create an employee with basic salary but NO UAN
     const noUanEmp = await prisma.employee.create({
       data: {
         companyId,
@@ -588,14 +579,12 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
     expect(exp!.severity).toBe('BLOCKING');
   });
 
-  // ==========================================
   // SECTION 5: TENANT ISOLATION & SECURITY (3 TESTS)
-  // ==========================================
   it('[SEC 01] Multi-tenant isolation: Tenant B cannot access Tenant A compliance datasets', async () => {
     await expect(
       CompliancePreparationService.prepareEcrDataset({
-        companyId: tenantBId, // wrong tenant
-        payrollCycleId,       // belongs to Tenant A
+        companyId: tenantBId,
+        payrollCycleId,
         actorUserId: adminUserId,
         actorEmail: 'admin@sarwin.com',
         actorRole: 'PAYROLL_ADMIN',
@@ -604,7 +593,6 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
   });
 
   it('[SEC 02] Deterministic exact integer rounding prevents floating point drift', async () => {
-    // Exact rupee validation
     const epf = StatutoryCalculatorService.roundRupee(1800.0000000004);
     const esicCeil = StatutoryCalculatorService.ceilToInteger(114.001);
 
@@ -615,11 +603,11 @@ describe('Phase 7B: EPF, ESIC and Professional Tax Comprehensive Test Suite (30 
   it('[SEC 03] Financial safety confirmation: Baseline net pay matches earnings minus statutory sum', async () => {
     const gross = 85000;
     const basic = 42500;
-    const epf = Math.round(Math.min(basic, 15000) * 0.12); // 1800
-    const esic = gross <= 21000 ? Math.ceil(gross * 0.0075) : 0; // 0
-    const pt = gross > 15000 ? 200 : 0; // 200
-    const totalDeductions = epf + esic + pt; // 2000
-    const netSalary = gross - totalDeductions; // 83000
+    const epf = Math.round(Math.min(basic, 15000) * 0.12);
+    const esic = gross <= 21000 ? Math.ceil(gross * 0.0075) : 0;
+    const pt = gross > 15000 ? 200 : 0;
+    const totalDeductions = epf + esic + pt;
+    const netSalary = gross - totalDeductions;
 
     expect(totalDeductions).toBe(2000);
     expect(netSalary).toBe(83000);
