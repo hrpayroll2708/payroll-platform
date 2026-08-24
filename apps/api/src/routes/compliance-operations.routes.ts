@@ -4,7 +4,10 @@ import { Form24QService } from '../services/form24q.service';
 import { ChallanService } from '../services/challan.service';
 import { StatutoryReconciliationService } from '../services/statutory-reconciliation.service';
 import { ComplianceDashboardService } from '../services/compliance-dashboard.service';
+import { ComplianceCalendarService } from '../services/compliance-calendar.service';
+import { PrismaClient } from '@prisma/client';
 
+const prisma = new PrismaClient();
 const router = Router();
 
 // 1. Form 24Q Validation
@@ -76,7 +79,22 @@ router.post('/challans/allocate', requireAuth, requirePermission('CHALLAN_RECONC
   }
 });
 
-// 5. TDS Reconciliation
+// 5. List Challans
+router.get('/challans', requireAuth, requirePermission('CHALLAN_READ'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { financialYear, challanType } = req.query;
+    const list = await ChallanService.listChallans({
+      companyId: req.user!.companyId,
+      financialYear: financialYear as string,
+      challanType: challanType as any,
+    });
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to retrieve challans' });
+  }
+});
+
+// 6. TDS Reconciliation
 router.get('/reconciliation/tds', requireAuth, requirePermission('COMPLIANCE_RECONCILE'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { financialYear, quarter } = req.query;
@@ -91,7 +109,7 @@ router.get('/reconciliation/tds', requireAuth, requirePermission('COMPLIANCE_REC
   }
 });
 
-// 6. Dashboard Metrics
+// 7. Dashboard Metrics
 router.get('/dashboard', requireAuth, requirePermission('COMPLIANCE_PERIOD_READ'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { financialYear } = req.query;
@@ -102,6 +120,33 @@ router.get('/dashboard', requireAuth, requirePermission('COMPLIANCE_PERIOD_READ'
     res.json(metrics);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Dashboard retrieval failed' });
+  }
+});
+
+// 8. Compliance Calendar Schedule
+router.get('/calendar', requireAuth, requirePermission('COMPLIANCE_PERIOD_READ'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { financialYear } = req.query;
+    const schedule = await ComplianceCalendarService.getComplianceCalendar({
+      companyId: req.user!.companyId,
+      financialYear: (financialYear as string) || '2026-2027',
+    });
+    res.json(schedule);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Calendar retrieval failed' });
+  }
+});
+
+// 9. Document Vault
+router.get('/documents', requireAuth, requirePermission('COMPLIANCE_DOCUMENT_READ'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const docs = await prisma.complianceDocument.findMany({
+      where: { companyId: req.user!.companyId },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(docs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Vault retrieval failed' });
   }
 });
 
