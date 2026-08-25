@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 
@@ -652,7 +652,7 @@ export default function SarwinHRPayrollApp() {
                 placeholder="Full Name"
                 value={newEmp.name}
                 onChange={(e) => setNewEmp({ ...newEmp, name: e.target.value })}
-                className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400"
+                className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400"
               />
               <div className="grid grid-cols-2 gap-3">
                 <input
@@ -661,12 +661,12 @@ export default function SarwinHRPayrollApp() {
                   placeholder="Email"
                   value={newEmp.email}
                   onChange={(e) => setNewEmp({ ...newEmp, email: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400"
+                  className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400"
                 />
                 <select
                   value={newEmp.department}
                   onChange={(e) => setNewEmp({ ...newEmp, department: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400"
+                  className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400"
                 >
                   <option>Engineering</option>
                   <option>Product & Design</option>
@@ -680,7 +680,7 @@ export default function SarwinHRPayrollApp() {
                   placeholder="Designation"
                   value={newEmp.designation}
                   onChange={(e) => setNewEmp({ ...newEmp, designation: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400"
+                  className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400"
                 />
                 <input
                   type="number"
@@ -688,7 +688,7 @@ export default function SarwinHRPayrollApp() {
                   placeholder="Monthly Gross"
                   value={newEmp.monthlyGross}
                   onChange={(e) => setNewEmp({ ...newEmp, monthlyGross: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400 font-mono font-bold"
+                  className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400 font-mono font-bold"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -697,14 +697,14 @@ export default function SarwinHRPayrollApp() {
                   placeholder="PAN"
                   value={newEmp.pan}
                   onChange={(e) => setNewEmp({ ...newEmp, pan: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400 font-mono"
+                  className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400 font-mono"
                 />
                 <input
                   type="text"
                   placeholder="UAN"
                   value={newEmp.uan}
                   onChange={(e) => setNewEmp({ ...newEmp, uan: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400 font-mono"
+                  className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400 font-mono"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -713,14 +713,14 @@ export default function SarwinHRPayrollApp() {
                   placeholder="Bank Account"
                   value={newEmp.bankAccount}
                   onChange={(e) => setNewEmp({ ...newEmp, bankAccount: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400 font-mono"
+                  className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400 font-mono"
                 />
                 <input
                   type="text"
                   placeholder="IFSC"
                   value={newEmp.ifsc}
                   onChange={(e) => setNewEmp({ ...newEmp, ifsc: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl bg-white text-gray-900 placeholder:text-gray-400 font-mono"
+                  className="w-full px-3 py-2 border rounded-xl bg-white !text-gray-900 placeholder:text-gray-400 font-mono"
                 />
               </div>
               <div className="pt-2 flex justify-end gap-2">
