@@ -9,13 +9,13 @@ app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', platform: 'Kredily-Style HRMS API' });
+  res.json({ status: 'healthy', platform: 'SARWIN HRPAYROLL API' });
 });
 
 app.get('/api/dashboard/stats', async (req, res) => {
   try {
-    const totalEmployees = await prisma.employee.count({ where: { status: 'ACTIVE' } });
-    const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' } });
+    const totalEmployees = await prisma.employee.count({ where: { employmentStatus: 'ACTIVE' } });
+    const employees = await prisma.employee.findMany({ where: { employmentStatus: 'ACTIVE' } });
     const monthlyGrossPayroll = employees.reduce((sum, emp) => sum + (emp.monthlyGross || 0), 0);
     const statutoryLiability = Math.round(monthlyGrossPayroll * 0.15);
 
@@ -63,7 +63,7 @@ app.post('/api/employees', async (req, res) => {
         basicSalary: basic,
         hra,
         specialAllowance,
-        status: 'ACTIVE'
+        employmentStatus: 'ACTIVE'
       }
     });
     res.status(201).json(employee);
@@ -75,7 +75,7 @@ app.post('/api/employees', async (req, res) => {
 app.post('/api/payroll/calculate', async (req, res) => {
   try {
     const { month = 8, year = 2026, lopRecords = {} } = req.body;
-    const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' } });
+    const employees = await prisma.employee.findMany({ where: { employmentStatus: 'ACTIVE' } });
     const daysInMonth = 31;
 
     const calculations = employees.map(emp => {
